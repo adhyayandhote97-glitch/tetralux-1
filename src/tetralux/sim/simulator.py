@@ -4,18 +4,23 @@ Ground truth for later phases. Models six face-mounted photodiodes on a 1U
 CubeSat and, given a light direction, produces the raw per-face readings a real
 sensor array would report. No hardware, no serial — just physics.
 
+The simulator emits raw pre-calibration voltages ``V_i``. Optional per-face gain
+``G_i`` and dark offset ``D_i`` let it produce readings that Phase 2's
+calibration step inverts exactly: ``corrected_reading(V_i, D_i, G_i)`` recovers
+the noise-free optical signal ``S_i``.
+
 Sensor pipeline, applied per face in this exact order:
 
-    raw   = intensity * max(0, dot(face_normal, light_dir))   # Lambertian cosine
-    value = raw + dark_current                                # baseline offset (D_i)
+    S     = intensity * max(0, dot(face_normal, light_dir))   # Lambertian cosine (S_i)
+    value = S / G_i + D_i                                      # raw voltage V_i
     value = value + N(0, noise_std)                           # Gaussian noise
     value = max(0.0, value)                                   # no negative photocurrent
     if saturation_limit is not None and value >= saturation_limit:
         value, saturated = saturation_limit, True             # clip + flag
 
-The emitted ``reading`` corresponds to the raw pre-calibration value ``V_i`` in
-the project math spec (formula 1); ``dark_current`` corresponds to ``D_i``. See
-``docs/architecture.md`` for the full contract with the Phase 2 estimator.
+With the defaults (``gain=1.0``, ``dark_current=0.0``) this reduces to
+``V_i = S_i`` — the plain forward model. Because calibration is the inverse
+(``R_i = (V_i - D_i) * G_i``), a noise-free reading round-trips back to ``S_i``.
 
 Everything here is a pure function with type hints — no classes, no global
 state. Noise is made reproducible by passing a seeded ``numpy`` generator.
@@ -23,9 +28,22 @@ state. Noise is made reproducible by passing a seeded ``numpy`` generator.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 
 from tetralux.constants import FACE_NAMES, FACE_NORMALS, MIN_EPSILON
+
+
+def _resolve(param: "float | Mapping[str, float]", face: str, default: float) -> float:
+    """Resolve a scalar-or-per-face parameter to a float for ``face``.
+
+    A plain number applies to every face; a mapping supplies per-face values
+    (falling back to ``default`` for any face it omits).
+    """
+    if isinstance(param, Mapping):
+        return float(param.get(face, default))
+    return float(param)
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
@@ -53,24 +71,30 @@ def simulate_faces(
     light_dir: np.ndarray,
     intensity: float = 1.0,
     noise_std: float = 0.0,
-    dark_current: float = 0.0,
+    dark_current: "float | Mapping[str, float]" = 0.0,
     saturation_limit: float | None = None,
     rng: np.random.Generator | None = None,
+    gain: "float | Mapping[str, float]" = 1.0,
 ) -> dict[str, dict]:
     """Simulate the six photodiode face readings for a given light direction.
 
     Args:
         light_dir: 3-vector pointing from the cube toward the light source. Need
             not be unit length; it is normalized internally.
-        intensity: Peak reading of a face pointed straight at the light.
+        intensity: Peak optical signal of a face pointed straight at the light.
         noise_std: Standard deviation of additive Gaussian noise, per face.
-        dark_current: Baseline offset added to every face (the ``D_i`` term).
+        dark_current: Dark offset ``D_i`` added to every face. Scalar (same for
+            all faces) or a mapping of face name -> offset. This is the value
+            Phase 2's ``corrected_reading`` subtracts back out.
         saturation_limit: If set, any reading ``>=`` this value is clipped to it
             and flagged as saturated.
         rng: Optional NumPy ``Generator`` for reproducible noise. If ``None`` and
             ``noise_std > 0``, a fresh ``default_rng()`` is created
             (nondeterministic). Pass ``np.random.default_rng(seed)`` for
             reproducible output.
+        gain: Per-face responsivity ``G_i``. Scalar or a mapping of face name ->
+            gain. The signal is divided by ``G_i`` so that calibration
+            (which multiplies by ``G_i``) recovers it. Defaults to 1.0.
 
     Returns:
         Dict keyed by face name (``"+x"``, ``"-x"``, ...) in canonical order.
@@ -87,10 +111,11 @@ def simulate_faces(
     result: dict[str, dict] = {}
     for name in FACE_NAMES:
         normal = FACE_NORMALS[name]
+        gain_i = _resolve(gain, name, 1.0)
+        dark_i = _resolve(dark_current, name, 0.0)
 
-        cosine = float(np.dot(normal, direction))
-        value = intensity * max(0.0, cosine)   # Lambertian falloff, clipped at 0
-        value += dark_current
+        signal = intensity * max(0.0, float(np.dot(normal, direction)))  # S_i
+        value = signal / gain_i + dark_i                                 # raw V_i
         if noise_std > 0.0:
             value += float(rng.normal(0.0, noise_std))
         value = max(0.0, value)                # photodiodes can't read negative
@@ -109,9 +134,10 @@ def generate_sweep(
     step_deg: float = 15.0,
     intensity: float = 1.0,
     noise_std: float = 0.0,
-    dark_current: float = 0.0,
+    dark_current: "float | Mapping[str, float]" = 0.0,
     saturation_limit: float | None = None,
     rng: np.random.Generator | None = None,
+    gain: "float | Mapping[str, float]" = 1.0,
 ) -> list[tuple[np.ndarray, dict]]:
     """Sweep the light direction across the +z hemisphere and return ground-truth
     ``(light_dir, face_readings)`` pairs.
@@ -131,6 +157,7 @@ def generate_sweep(
         dark_current: Passed through to :func:`simulate_faces`.
         saturation_limit: Passed through to :func:`simulate_faces`.
         rng: Passed through to :func:`simulate_faces` for reproducible noise.
+        gain: Passed through to :func:`simulate_faces`.
 
     Returns:
         List of ``(light_dir, face_readings)`` pairs, where ``light_dir`` is a
@@ -154,6 +181,7 @@ def generate_sweep(
             dark_current=dark_current,
             saturation_limit=saturation_limit,
             rng=rng,
+            gain=gain,
         )
         return light_dir, readings
 
