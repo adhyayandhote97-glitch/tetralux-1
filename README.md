@@ -29,7 +29,7 @@ radiation pressure, validation, thermal, and color) lives in
 | **1** | Sun-vector **simulator** (`tetralux/sim/`) — pure forward model / ground truth | ✅ done |
 | **2** | Estimation engine (`tetralux/estimation/`) + validation/physics/spectral (formulas 1–16) | ✅ done |
 | **3** | Fault detection (`tetralux/faults/`) — low-signal, saturation, multi-source; packet-integrity primitives | ✅ done |
-| 4 | Fake telemetry (`tetralux/telemetry/`) — fixed-length binary packets, checksum, ~10–20 Hz | planned |
+| **4** | Fake telemetry (`tetralux/telemetry/`) — 17-byte binary packets, 8-bit checksum, resync parser, ~10–20 Hz | ✅ done |
 | 5 | Dashboard (`tetralux/dashboard/`) — live vectors, health, replay | planned |
 
 ## Project layout
@@ -43,7 +43,7 @@ src/tetralux/
   physics/            # Phase 2: SRP physics (formulas 6-10)
   spectral/           # Phase 2: CIE color validation (formulas 15-16)
   faults/             # Phase 3: fault detection + packet-integrity primitives
-  telemetry/          # Phase 4 (stub)
+  telemetry/          # Phase 4: fixed-length binary packet codec + stream generator
   dashboard/          # Phase 5 (stub)
 tests/                # pytest suite
 docs/architecture.md  # hardware map + locked math spec + fault-detection design

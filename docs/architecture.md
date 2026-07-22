@@ -236,5 +236,36 @@ suppress the vector, leaving the trust decision to the caller.
 
 **Scope note:** packet integrity is provided as *format-agnostic primitives*
 (`checksum8`, `verify_checksum`, `validate_packet`) because the fixed-length
-binary packet layout is a Phase 4 (telemetry) artifact. Phase 4 will assemble
-the real packet on top of these.
+binary packet layout is a Phase 4 (telemetry) artifact. Phase 4 assembles the
+real packet on top of these.
+
+---
+
+## 6. Telemetry packet (Phase 4)
+
+`tetralux/telemetry/` implements the CubeSat downlink as a **17-byte
+fixed-length, big-endian binary packet**, built on the Phase 3 integrity
+primitives:
+
+| offset | size | field |
+|---|---|---|
+| 0 | 1 | SYNC byte `0xAA` (frame start / resync marker) |
+| 1 | 2 | `seq` — uint16 sequence counter (wraps at 65535) |
+| 3 | 12 | 6 × uint16 face readings, in `FACE_NAMES` order (ADC counts) |
+| 15 | 1 | saturation bitfield — bit *i* set == `FACE_NAMES[i]` saturated |
+| 16 | 1 | 8-bit additive checksum over bytes 0–15 |
+
+- **Quantization:** readings are clamped to `[0, 65535]` and rounded to 16-bit
+  ADC counts — the realistic lossy step of a real ADC front end. Saturation
+  flags survive losslessly in the bitfield.
+- **Codec** (`packet.py`): `encode_packet(seq, face_readings)` /
+  `decode_packet(raw)`; `decode_packet` raises `PacketError` (carrying a
+  `PacketFault`) on wrong length, bad sync, or checksum mismatch.
+- **Resync parser:** `iter_packets(stream)` scans for SYNC and decodes full
+  packets, advancing one byte past a bad checksum or false sync — so corrupted
+  or truncated packets are skipped, not fatal (the corrupted/truncated failure
+  mode, end to end).
+- **Generator** (`generator.py`): `generate_telemetry(light_dirs, rate_hz=10)`
+  simulates + encodes one packet per direction, stamping frame *i* at
+  `i / rate_hz` (nominal ~10–20 Hz; no real-time sleeping so replay can run at
+  any speed).
