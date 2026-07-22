@@ -154,3 +154,24 @@ def _resolve(param: "float | Mapping[str, float]", face: str, default: float) ->
     if isinstance(param, Mapping):
         return float(param.get(face, default))
     return float(param)
+
+
+def sun_angles(sun_vector: np.ndarray) -> "tuple[float, float]":
+    """Attitude angles of a unit sun vector, in degrees.
+
+    Azimuth = ``atan2(y, x)`` in ``[-180, 180]``; elevation = ``asin(z)`` in
+    ``[-90, 90]`` (formulas 9-10 style, applied to the sun vector).
+    """
+    x, y, z = (float(c) for c in sun_vector)
+    azimuth = float(np.degrees(np.arctan2(y, x)))
+    elevation = float(np.degrees(np.arcsin(max(-1.0, min(1.0, z)))))
+    return azimuth, elevation
+
+
+def angles_to_vector(azimuth_deg: float, elevation_deg: float) -> np.ndarray:
+    """Unit vector for a given azimuth/elevation (inverse of :func:`sun_angles`)."""
+    az = np.radians(azimuth_deg)
+    el = np.radians(elevation_deg)
+    return np.array(
+        [np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)]
+    )

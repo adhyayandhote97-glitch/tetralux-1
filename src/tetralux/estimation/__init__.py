@@ -6,11 +6,13 @@ Implements the LOCKED formulas 1-4 (see docs/architecture.md) and raises
 
 from tetralux.estimation.estimator import (
     LowSignalError,
+    angles_to_vector,
     corrected_reading,
     cosine_proxy,
     direction_vector,
     estimate_sun_vector,
     face_weight,
+    sun_angles,
     sun_vector,
 )
 
@@ -22,4 +24,6 @@ __all__ = [
     "sun_vector",
     "cosine_proxy",
     "estimate_sun_vector",
+    "sun_angles",
+    "angles_to_vector",
 ]

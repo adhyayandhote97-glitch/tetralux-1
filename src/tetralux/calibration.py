@@ -1,0 +1,57 @@
+"""Photodiode calibration (Phase 6).
+
+Turns raw ADC counts into corrected readings, cosine proxies, and physical
+irradiance, per docs/architecture.md formulas 1 and 5. Reuses the locked
+``corrected_reading`` from the estimator; adds the per-face floor-at-zero and the
+irradiance mapping. Defaults mirror the v0 lab calibration.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from tetralux.constants import FACE_NAMES, MIN_EPSILON, SOLAR_CONSTANT
+from tetralux.estimation.estimator import corrected_reading
+
+# v0 lab-calibration defaults (per face, canonical order).
+DEFAULT_DARK = {"+x": 5.0, "-x": 4.0, "+y": 6.0, "-y": 5.0, "+z": 7.0, "-z": 6.0}
+DEFAULT_GAIN = {"+x": 1.00, "-x": 0.98, "+y": 1.02, "-y": 0.99, "+z": 1.01, "-z": 0.97}
+DEFAULT_MAX = {"+x": 1000.0, "-x": 980.0, "+y": 1005.0, "-y": 995.0, "+z": 1010.0, "-z": 970.0}
+DEFAULT_LAB_SCALING = 0.1  # I_lamp / I_sun (see docs/architecture.md calibration notes)
+
+
+@dataclass
+class Calibration:
+    """Per-face calibration parameters."""
+
+    dark: dict = field(default_factory=lambda: dict(DEFAULT_DARK))
+    gain: dict = field(default_factory=lambda: dict(DEFAULT_GAIN))
+    max_illumination: dict = field(default_factory=lambda: dict(DEFAULT_MAX))
+    lab_scaling_factor: float = DEFAULT_LAB_SCALING
+
+
+def corrected_readings(photodiodes: dict, cal: Calibration) -> dict:
+    """Formula 1 per face, floored at 0: ``R_i = max(0, (V_i - D_i) * G_i)``.
+
+    Args:
+        photodiodes: Face -> raw ADC count.
+        cal: Calibration parameters.
+    """
+    return {
+        f: max(0.0, corrected_reading(float(photodiodes[f]), cal.dark[f], cal.gain[f]))
+        for f in FACE_NAMES
+    }
+
+
+def cosine_proxy(corrected: dict, cal: Calibration) -> dict:
+    """Formula 5 per face, clamped to [0, 1]: ``cos(theta_i) = R_i / V_max_i``."""
+    out = {}
+    for f in FACE_NAMES:
+        v_max = max(cal.max_illumination[f], MIN_EPSILON)
+        out[f] = min(1.0, max(0.0, corrected[f] / v_max))
+    return out
+
+
+def irradiance(cosine: dict, cal: Calibration) -> dict:
+    """Per-face irradiance (W/m^2): ``I_i = SOLAR_CONSTANT * f_lab * cos(theta_i)``."""
+    return {f: SOLAR_CONSTANT * cal.lab_scaling_factor * cosine[f] for f in FACE_NAMES}

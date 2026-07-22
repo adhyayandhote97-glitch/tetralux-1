@@ -28,3 +28,11 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# Ground-station data logs (local full-fidelity mirror)
+data/
+
+# Firebase service-account credentials — NEVER commit
+*serviceAccount*.json
+*firebase*adminsdk*.json
+.env
