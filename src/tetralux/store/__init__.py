@@ -14,7 +14,7 @@ from tetralux.store.query import (
     read_range,
 )
 from tetralux.store.recorder import Recorder
-from tetralux.store.rtdb_store import FakeStore
+from tetralux.store.rtdb_store import FakeStore, make_online_store
 from tetralux.store.session import SessionController, SessionInfo
 
 __all__ = [
@@ -22,6 +22,7 @@ __all__ = [
     "export_csv",
     "Recorder",
     "FakeStore",
+    "make_online_store",
     "SessionController",
     "SessionInfo",
     "SessionSummary",

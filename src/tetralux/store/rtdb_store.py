@@ -21,6 +21,25 @@ def _size(record_dict: dict) -> int:
     return len(json.dumps(record_dict).encode("utf-8"))
 
 
+def make_online_store():
+    """Return an :class:`RTDBStore` if Firebase env vars are set, else ``None``.
+
+    Requires both ``GOOGLE_APPLICATION_CREDENTIALS`` and ``FIREBASE_DATABASE_URL``.
+    Lets the dashboard/CLI enable online logging with no code change — and stay
+    local-only (still full fidelity) when unconfigured.
+    """
+    if not (os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            and os.environ.get("FIREBASE_DATABASE_URL")):
+        return None
+    try:
+        store = RTDBStore()
+        print("[tetralux] Firebase RTDB online logging enabled.")
+        return store
+    except Exception as exc:  # missing extra, bad creds, etc.
+        print(f"[tetralux] Firebase disabled ({exc}); logging locally only.")
+        return None
+
+
 class FakeStore:
     """In-memory OnlineStore for tests / credential-free runs."""
 

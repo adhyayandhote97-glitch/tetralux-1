@@ -481,8 +481,14 @@ def _register_callbacks(app, state):
 
 
 def main(port: int = 8050, debug: bool = False) -> None:
-    """Launch the ground-station dashboard (Virtual mode by default)."""
-    create_app().run(port=port, debug=debug)
+    """Launch the ground-station dashboard (Virtual mode by default).
+
+    Enables Firebase RTDB online logging automatically if the credentials env
+    vars are set; otherwise logs locally only (still full fidelity).
+    """
+    from tetralux.store import make_online_store
+
+    create_app(AppState(online_store=make_online_store())).run(port=port, debug=debug)
 
 
 if __name__ == "__main__":

@@ -85,8 +85,11 @@ def main() -> None:
                     help="start a logging session (off by default)")
     ap.add_argument("--base-dir", default="data/logs")
     args = ap.parse_args()
+    from tetralux.store import make_online_store
+
     run(host=args.host, port=args.port, record=args.record,
-        serial_port=args.serial, base_dir=args.base_dir)
+        serial_port=args.serial, base_dir=args.base_dir,
+        online_store=make_online_store())
 
 
 if __name__ == "__main__":
