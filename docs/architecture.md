@@ -350,3 +350,35 @@ single-page replay app is preserved as `replay_app.py`.
 
 The real path also runs headless: `python -m tetralux.groundstation --port 8000
 [--record] [--serial PORT]`.
+
+---
+
+## 9. Hardware bring-up (Phase 10)
+
+`firmware/` is a fresh Arduino Nano 33 IoT (PlatformIO) implementation of the
+wire contract in §8.1 — same field order, same byte-exact XOR checksum
+(`firmware/src/telemetry/packet.cpp` mirrors `xor_checksum()`), WiFi HTTP POST
+primary with Serial fallback. It intentionally does **not** repeat two v0 bugs:
+the `#ifdef CONFIG_H` guard (fixed to `#ifndef`) and the checksum-verifier
+re-serialization mismatch (the ground station already XORs raw received bytes,
+per §8.1). The OPT4048 driver (`firmware/src/sensors/opt4048.cpp`) is a labeled
+first draft — its channel-to-XYZ matrix is a placeholder pending datasheet
+verification on real hardware.
+
+**Calibration** (`calibration.py` + `calibration_tool.py`) gained runtime
+plumbing: `Calibration.save()/load()` (JSON), a guided CLI that captures
+dark/gain/max from a live telemetry stream (`calibration_tool.py`'s
+`run_guided_calibration()` is pure — testable against the simulated device feed
+with no hardware), and `--calibration <path>` on `groundstation.py` /
+a "Load calibration file" control on the dashboard's Live page.
+
+One correctness note from live-testing the guided CLI: a real device streams
+continuously between prompts, so frames posted *before* the operator finished
+repositioning the light (still reflecting the previous step) would sit at the
+front of the ingest queue and get consumed as the new step's data. `collect()`
+now flushes the queue (`_flush_queue()`) the moment the operator confirms
+readiness, before sampling — confirmed live by driving the CLI against a
+continuously-streaming simulated feed with deliberately stale frames queued.
+
+See `docs/bringup.md` for the full step-by-step procedure and a troubleshooting
+table mapping `RejectedFrame` reasons to likely hardware causes.

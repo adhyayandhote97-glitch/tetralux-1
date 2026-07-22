@@ -20,6 +20,7 @@ from typing import Optional
 
 import numpy as np
 
+from tetralux.calibration import Calibration
 from tetralux.estimation.estimator import angles_to_vector
 from tetralux.frames import RejectedFrame
 from tetralux.ingest.monitor import StreamMonitor
@@ -45,6 +46,8 @@ class AppState:
         self.monitor = StreamMonitor(timeout_s=1.0)
         self.session = SessionController(base_dir, online_store)
         self.stream_ctx = None  # created on start_real
+        self.calibration: Optional[Calibration] = None
+        self.calibration_path: Optional[str] = None
 
         self._buffer: deque = deque(maxlen=buffer_size)
         self._queue = create_frame_queue()
@@ -93,10 +96,24 @@ class AppState:
         """Start the processing loop (idempotent)."""
         if self._proc_thread is not None and self._proc_thread.is_alive():
             return
-        self.stream_ctx = make_streaming_context(monitor=self.monitor)
+        self.stream_ctx = make_streaming_context(monitor=self.monitor,
+                                                 calibration=self.calibration)
         self._proc_stop.clear()
         self._proc_thread = threading.Thread(target=self._process_loop, daemon=True)
         self._proc_thread.start()
+
+    def load_calibration(self, path: str) -> Calibration:
+        """Load a calibration file and apply it to the real-mode stream context.
+
+        Rebuilds the streaming context (fresh rolling validator + thermal
+        analyzer) with the new calibration, so rolling stats reset but every
+        subsequent frame is corrected with the measured values.
+        """
+        cal = Calibration.load(path)
+        self.calibration = cal
+        self.calibration_path = path
+        self.stream_ctx = make_streaming_context(monitor=self.monitor, calibration=cal)
+        return cal
 
     def _process_loop(self) -> None:
         while not self._proc_stop.is_set():

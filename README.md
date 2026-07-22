@@ -32,6 +32,7 @@ radiation pressure, validation, thermal, and color) lives in
 | **4** | Fake telemetry (`tetralux/telemetry/`) — 17-byte binary packets, 8-bit checksum, resync parser, ~10–20 Hz | ✅ done |
 | **5** | Dashboard (`tetralux/dashboard/`) — Plotly Dash: 3D vector, face bars, error timeline, fault health, replay | ✅ done |
 | **6–9** | **Ground station** — real JSON ingestion, full sensor pipeline, Firebase RTDB logging, multi-page dashboard (Virtual/Real) | ✅ done |
+| **10** | **Hardware bring-up** — firmware (`firmware/`), guided calibration tool, [`docs/bringup.md`](docs/bringup.md) runbook | ✅ done |
 
 ## Project layout
 
@@ -39,7 +40,8 @@ radiation pressure, validation, thermal, and color) lives in
 src/tetralux/
   constants.py        # FACE_NAMES, FACE_NORMALS, MIN_EPSILON, ADC/CCT/window constants
   frames.py           # SensorFrame / RejectedFrame contract (matches real firmware JSON)
-  calibration.py      # corrected readings, cosine proxy, irradiance (formulas 1,5)
+  calibration.py      # corrected readings, cosine proxy, irradiance (formulas 1,5) + save/load
+  calibration_tool.py # Phase 10: guided dark/gain/max calibration CLI
   record.py           # GroundStationRecord (everything the UI shows) + JSON-safe to_dict
   pipeline.py         # process(frame) -> record, chaining every phase
   groundstation.py    # CLI: HTTP+serial ingest -> processing -> record (real path)
@@ -53,8 +55,10 @@ src/tetralux/
   ingest/             # Phase 6: HTTP + serial ingest, StreamMonitor
   store/              # Phase 8: local JSONL + Firebase RTDB + session control + query
   dashboard/          # Phase 9: multi-page Dash app (Virtual/Real), units registry
-tests/                # pytest suite (105 tests)
+firmware/             # Phase 10: Arduino Nano 33 IoT firmware (PlatformIO project)
+tests/                # pytest suite (123 tests)
 docs/architecture.md  # hardware map + locked math spec + ground-station design
+docs/bringup.md       # Phase 10: hardware bring-up runbook
 ```
 
 ## Running the ground-station dashboard
@@ -93,6 +97,24 @@ python -m tetralux.groundstation --serial /dev/tty.usb… --record  # USB serial
 The firmware POSTs newline-delimited JSON (`seq,ts,pd,lux,mag,opt,temp,flags,chk`,
 8-bit XOR checksum) to `/ingest`. `--record` starts a logging session (off by
 default). Point `python -m tetralux.dashboard` at the same machine to view it.
+
+## Hardware bring-up (firmware + calibration)
+
+Flashing and wiring instructions live in [`docs/bringup.md`](docs/bringup.md);
+the Arduino firmware is in [`firmware/`](firmware/) (PlatformIO project — copy
+`firmware/include/secrets.h.example` to `secrets.h`, fill in your WiFi/server
+details, `pio run -t upload`).
+
+Once telemetry is flowing, measure *this* prototype's actual dark/gain/max
+values (the defaults in `calibration.py` are generic placeholders):
+
+```bash
+python -m tetralux.calibration_tool --port 8000 --out calibration.json
+python -m tetralux.groundstation --port 8000 --record --calibration calibration.json
+```
+
+Or load a calibration file live from the dashboard's Live page without
+restarting anything.
 
 ## Online logging (Firebase Realtime Database)
 

@@ -36,3 +36,13 @@ data/
 *serviceAccount*.json
 *firebase*adminsdk*.json
 .env
+
+# Firmware secrets (WiFi credentials) — NEVER commit
+firmware/include/secrets.h
+
+# PlatformIO build artifacts
+firmware/.pio/
+firmware/.vscode/
+
+# Measured calibration files (device-specific, not generic defaults)
+calibration.json

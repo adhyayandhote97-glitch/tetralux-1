@@ -262,6 +262,14 @@ def create_app(state: Optional[AppState] = None) -> Dash:
                                                   "color": "#6b7a9a"}),
             html.Span(id="conn-badge", style={"marginLeft": "18px", "float": "right"}),
         ]),
+        html.Div([
+            html.Label("Calibration file (Real mode)", style={"marginRight": "8px"}),
+            dcc.Input(id="cal-path", type="text", placeholder="calibration.json",
+                      style={"width": "260px"}),
+            html.Button("Load calibration", id="cal-load-btn", n_clicks=0,
+                        style={"marginLeft": "8px", "padding": "4px 10px"}),
+            html.Span(id="cal-status", style={"marginLeft": "12px", "color": "#6b7a9a"}),
+        ], style={"marginTop": "8px"}),
         slider_row,
     ], style={"padding": "10px 0", "borderBottom": "1px solid #e5e5e5"})
 
@@ -352,6 +360,19 @@ def _register_callbacks(app, state):
         else:
             state.stop_sim_device()
         return value
+
+    @app.callback(
+        Output("cal-status", "children"),
+        Input("cal-load-btn", "n_clicks"), State("cal-path", "value"),
+        prevent_initial_call=True)
+    def _load_calibration(_n, path):
+        if not path:
+            return "Enter a calibration.json path first."
+        try:
+            state.load_calibration(path)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            return f"Failed to load {path}: {exc}"
+        return f"Loaded {path} — applied to Real-mode processing."
 
     @app.callback(
         Output("session-status", "children"), Output("session-btn", "children"),

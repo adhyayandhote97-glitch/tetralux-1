@@ -8,7 +8,10 @@ irradiance mapping. Defaults mirror the v0 lab calibration.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Union
 
 from tetralux.constants import FACE_NAMES, MIN_EPSILON, SOLAR_CONSTANT
 from tetralux.estimation.estimator import corrected_reading
@@ -28,6 +31,39 @@ class Calibration:
     gain: dict = field(default_factory=lambda: dict(DEFAULT_GAIN))
     max_illumination: dict = field(default_factory=lambda: dict(DEFAULT_MAX))
     lab_scaling_factor: float = DEFAULT_LAB_SCALING
+
+    def to_json(self) -> str:
+        """Serialize to a JSON string (one key per parameter, per-face dicts)."""
+        return json.dumps(asdict(self), indent=2, sort_keys=True)
+
+    @classmethod
+    def from_json(cls, text: str) -> "Calibration":
+        """Reconstruct from a JSON string produced by :meth:`to_json`."""
+        data = json.loads(text)
+        return cls(
+            dark=dict(data["dark"]),
+            gain=dict(data["gain"]),
+            max_illumination=dict(data["max_illumination"]),
+            lab_scaling_factor=float(data["lab_scaling_factor"]),
+        )
+
+    def save(self, path: Union[str, Path]) -> None:
+        """Write this calibration to a JSON file."""
+        Path(path).write_text(self.to_json(), encoding="utf-8")
+
+    @classmethod
+    def load(cls, path: Union[str, Path]) -> "Calibration":
+        """Load a calibration previously written by :meth:`save`.
+
+        Raises:
+            FileNotFoundError: if ``path`` does not exist.
+            ValueError: if the file is missing required fields.
+        """
+        text = Path(path).read_text(encoding="utf-8")
+        try:
+            return cls.from_json(text)
+        except KeyError as exc:
+            raise ValueError(f"calibration file {path} missing field: {exc}") from exc
 
 
 def corrected_readings(photodiodes: dict, cal: Calibration) -> dict:

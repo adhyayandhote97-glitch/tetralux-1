@@ -18,6 +18,7 @@ import argparse
 import queue
 import threading
 
+from tetralux.calibration import Calibration
 from tetralux.frames import RejectedFrame
 from tetralux.ingest.http_server import run_ingest_server
 from tetralux.ingest.monitor import StreamMonitor
@@ -29,11 +30,18 @@ from tetralux.telemetry.json_frame import decode_json_frame
 
 def run(host: str = "0.0.0.0", port: int = 8000, record: bool = False,
         serial_port: "str | None" = None, base_dir: str = "data/logs",
-        online_store=None) -> None:
-    """Run the ingest server + processing loop (blocking)."""
+        online_store=None, calibration: "Calibration | None" = None) -> None:
+    """Run the ingest server + processing loop (blocking).
+
+    Args:
+        calibration: Per-face calibration to apply to incoming frames. Defaults
+            to the built-in placeholder values (see ``calibration.py``) if not
+            given — pass the result of ``Calibration.load(path)`` (produced by
+            ``calibration_tool.py``) for a real, measured prototype.
+    """
     frame_queue = create_frame_queue()
     monitor = StreamMonitor()
-    ctx = make_streaming_context(monitor=monitor)
+    ctx = make_streaming_context(monitor=monitor, calibration=calibration)
     session = SessionController(base_dir, online_store)
     if record:
         info = session.start()
@@ -84,12 +92,17 @@ def main() -> None:
     ap.add_argument("--record", action="store_true",
                     help="start a logging session (off by default)")
     ap.add_argument("--base-dir", default="data/logs")
+    ap.add_argument("--calibration", default=None,
+                    help="path to a calibration.json from calibration_tool.py "
+                         "(defaults to built-in placeholder values)")
     args = ap.parse_args()
     from tetralux.store import make_online_store
 
+    calibration = Calibration.load(args.calibration) if args.calibration else None
+
     run(host=args.host, port=args.port, record=args.record,
         serial_port=args.serial, base_dir=args.base_dir,
-        online_store=make_online_store())
+        online_store=make_online_store(), calibration=calibration)
 
 
 if __name__ == "__main__":

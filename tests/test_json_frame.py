@@ -67,3 +67,38 @@ def test_out_of_range_pd_rejected():
     result = decode_json_frame(encode_json_frame(frame))
     assert isinstance(result, RejectedFrame)
     assert "pd" in result.reason.lower()
+
+
+def test_decoder_accepts_independently_constructed_firmware_string():
+    """Firmware-contract proof (Phase 10): build a wire string by hand — with
+    different field order and formatting than our own encoder produces — and
+    confirm decode_json_frame() accepts it. Only xor_checksum() (the shared
+    algorithm both sides must implement) is reused to compute the trailer;
+    everything else here is independent of encode_json_frame()."""
+    # Field order deliberately differs from encode_json_frame's (mag before pd,
+    # flags before temp) to prove the parser doesn't depend on key order.
+    body = (
+        '{"seq":7,"ts":12345,'
+        '"mag":{"x":-12,"y":34,"z":56},'
+        '"pd":[512,20,300,15,700,8],'
+        '"lux":[10.5,0.0,25.3,1.2,88.0,0.5],'
+        '"opt":[{"X":1.000,"Y":2.000,"Z":3.000,"lux":10.0},'
+        '{"X":1.000,"Y":2.000,"Z":3.000,"lux":10.0},'
+        '{"X":1.000,"Y":2.000,"Z":3.000,"lux":10.0},'
+        '{"X":1.000,"Y":2.000,"Z":3.000,"lux":10.0}],'
+        '"flags":1,'
+        '"temp":[22.10,null,22.30,22.40,22.50,22.60]'
+        '}'
+    )
+    # A genuine firmware implementation appends the checksum after building the
+    # rest — reuse only the shared algorithm to compute it, exactly as it must.
+    wire = body[:-1] + f',"chk":{xor_checksum(body[:-1])}' + "}"
+
+    result = decode_json_frame(wire)
+    assert isinstance(result, SensorFrame)
+    assert result.seq == 7
+    assert result.timestamp_ms == 12345
+    assert result.photodiodes == [512, 20, 300, 15, 700, 8]
+    assert result.magnetometer == {"x": -12, "y": 34, "z": 56}
+    assert result.temperatures[1] is None
+    assert result.flags == 1
