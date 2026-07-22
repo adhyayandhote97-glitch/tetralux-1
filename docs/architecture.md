@@ -291,3 +291,62 @@ so the data logic stays dependency-light:
 Dash and Plotly are an **optional extra** (`pip install -e ".[dashboard]"`); the
 core package stays numpy-only. Dashboard tests `importorskip` the extra so the
 suite passes without it.
+
+---
+
+## 8. Ground station (Phases 6–9)
+
+Turns the twin into a real ground station: one frame contract, two data sources,
+one pipeline.
+
+### 8.1 Real wire format & ingestion (Phase 6)
+
+The firmware transmits one **newline-delimited ASCII JSON** object per sample:
+`{"seq","ts","pd"[6],"lux"[6],"mag"{x,y,z},"opt"[4]{X,Y,Z,lux},"temp"[6],"flags","chk"}`.
+The checksum is an **8-bit XOR of the raw body bytes before `,"chk"`** —
+`telemetry/json_frame.py` reproduces this byte-for-byte (encode + decode), so the
+virtual twin and the real device share one codec. `ingest/` provides a FastAPI
+`POST /ingest` (enqueue-only) and a `SerialReader`, both feeding one queue;
+`StreamMonitor` tracks received/dropped(seq-gap)/corrupt(checksum)/rate/connection.
+`SensorFrame` (`frames.py`) is the common currency.
+
+### 8.2 Pipeline & record (Phase 6)
+
+`pipeline.process(frame, ctx) -> GroundStationRecord` chains: calibrate
+(`calibration.py`, formulas 1 & 5) → estimate + az/el → validation (rolling or
+burst) → faults → thermal (`thermal/`, drift + rolling) → OPT trust
+(`spectral/opt.py`, McCamy CCT vs 5500 K ± 500 K). The record carries **every**
+displayed quantity and serializes NaN→null / numpy→python via `to_dict()`.
+
+### 8.3 Virtual sensors (Phase 7)
+
+`sim/sensors.py` synthesizes a full `SensorFrame` (photodiodes via `simulate_faces`
+emitting `V = S/G + D` so calibration inverts exactly; plus lux, temperature,
+OPT4048 tristimulus, magnetometer). `frame_from_angles(az, el)` feeds the Virtual
+mode's instantaneous recompute.
+
+### 8.4 Logging store (Phase 8)
+
+`store/` writes every record to a **local JSONL mirror** (always, full fidelity)
+and, when configured, to **Firebase Realtime Database — one node per packet**
+(`sessions/{sid}/packets/{ts_seq}`). `SessionController` gates all logging behind
+a manual **start/stop** (off by default) and tracks packet count / duration /
+accumulated bytes; `query.py` lists sessions and exports CSV. Credentials come
+from `GOOGLE_APPLICATION_CREDENTIALS` + `FIREBASE_DATABASE_URL` — never committed.
+
+**Rate/cost (100 Hz target):** RTDB is billed on storage/bandwidth, not per write,
+so it sustains per-packet logging (~18 MB / 10-min session). Firestore per-packet
+would be Blaze-only (~$15/day at 24×7); the local JSONL guarantees full fidelity
+regardless. No auto-pruning/throttling — visibility only, delete sessions manually.
+
+### 8.5 Dashboard v2 (Phase 9)
+
+`dashboard/app.py` is a multi-page app (Live · 3D Vector · Light in 3D ·
+Time-series · History/Logs · About) with a Virtual/Real toggle. Virtual recomputes
+instantly from the az/el sliders; Real streams from `AppState` (ingest queue →
+processing thread → rolling buffer), with a built-in simulated-device feed for
+demos. All values render through `units.py` (no bare numbers). The Phase 5
+single-page replay app is preserved as `replay_app.py`.
+
+The real path also runs headless: `python -m tetralux.groundstation --port 8000
+[--record] [--serial PORT]`.

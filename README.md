@@ -31,37 +31,82 @@ radiation pressure, validation, thermal, and color) lives in
 | **3** | Fault detection (`tetralux/faults/`) — low-signal, saturation, multi-source; packet-integrity primitives | ✅ done |
 | **4** | Fake telemetry (`tetralux/telemetry/`) — 17-byte binary packets, 8-bit checksum, resync parser, ~10–20 Hz | ✅ done |
 | **5** | Dashboard (`tetralux/dashboard/`) — Plotly Dash: 3D vector, face bars, error timeline, fault health, replay | ✅ done |
+| **6–9** | **Ground station** — real JSON ingestion, full sensor pipeline, Firebase RTDB logging, multi-page dashboard (Virtual/Real) | ✅ done |
 
 ## Project layout
 
 ```
 src/tetralux/
-  constants.py        # FACE_NAMES, FACE_NORMALS, MIN_EPSILON (single source of truth)
-  sim/                # Phase 1: sun-vector simulator (forward model)
-  estimation/         # Phase 2: estimator pipeline (formulas 1-5) + LowSignalError
-  validation/         # Phase 2: metrics (formulas 11-14)
-  physics/            # Phase 2: SRP physics (formulas 6-10)
-  spectral/           # Phase 2: CIE color validation (formulas 15-16)
+  constants.py        # FACE_NAMES, FACE_NORMALS, MIN_EPSILON, ADC/CCT/window constants
+  frames.py           # SensorFrame / RejectedFrame contract (matches real firmware JSON)
+  calibration.py      # corrected readings, cosine proxy, irradiance (formulas 1,5)
+  record.py           # GroundStationRecord (everything the UI shows) + JSON-safe to_dict
+  pipeline.py         # process(frame) -> record, chaining every phase
+  groundstation.py    # CLI: HTTP+serial ingest -> processing -> record (real path)
+  sim/                # Phase 1/7: photodiode simulator + full virtual sensor synthesis
+  estimation/         # Phase 2: estimator (formulas 1-5) + az/el + LowSignalError
+  validation/         # Phase 2/6: metrics (11-14) + RollingValidator + burst_metrics
+  physics/  spectral/ # Phase 2: SRP (6-10); CIE + McCamy CCT + OPT trust gate (15-16)
   faults/             # Phase 3: fault detection + packet-integrity primitives
-  telemetry/          # Phase 4: fixed-length binary packet codec + stream generator
-  dashboard/          # Phase 5: Plotly Dash app (replay layer is pure/numpy-only)
-tests/                # pytest suite
-docs/architecture.md  # hardware map + locked math spec + fault-detection design
+  telemetry/          # Phase 4/6: binary packet codec + real JSON codec (XOR checksum)
+  thermal/            # Phase 6: DS18B20 drift / rolling stats
+  ingest/             # Phase 6: HTTP + serial ingest, StreamMonitor
+  store/              # Phase 8: local JSONL + Firebase RTDB + session control + query
+  dashboard/          # Phase 9: multi-page Dash app (Virtual/Real), units registry
+tests/                # pytest suite (105 tests)
+docs/architecture.md  # hardware map + locked math spec + ground-station design
 ```
 
-## Running the dashboard
+## Running the ground-station dashboard
 
-The dashboard needs the optional `dashboard` extra (Dash + Plotly):
+Needs the `dashboard` extra (Dash + Plotly):
 
 ```bash
 pip install -e ".[dashboard]"
 python -m tetralux.dashboard      # serves http://127.0.0.1:8050
 ```
 
-It replays a demo telemetry stream (a light source sweeping overhead) with a
-scrub/play slider, a 3D estimated-vs-true sun vector, per-face ADC bars, an
-angular-error timeline, and a live fault-health panel. The replay data layer
-(`tetralux.dashboard.build_replay`) is pure numpy and importable without Dash.
+Pages: **Live** (Virtual/Real toggle), **3D Vector**, **Light in 3D**,
+**Time-series**, **History / Logs**, **About**.
+
+- **Virtual mode** — the azimuth/elevation sliders drive an *instantaneous*
+  recompute of every value (sun vector, weights, angular error, bias,
+  repeatability, OPT trust, temperatures …). No stream, no timeline.
+- **Real mode** — a live telemetry stream fills a rolling buffer; azimuth/
+  elevation are read-only and a connection indicator shows link health. Use the
+  **Simulated device feed** toggle to demo the real path without hardware.
+- **History / Logs** — browse recorded sessions (with size/duration/packet
+  count), filter by a time range, and export a CSV.
+
+Every displayed value carries its unit (or is labeled "dimensionless").
+
+## Running the real ingest server (for a physical prototype)
+
+Needs the `ingest` extra (`fastapi`, `uvicorn`, `pyserial`):
+
+```bash
+pip install -e ".[ingest]"
+python -m tetralux.groundstation --port 8000 --record        # WiFi HTTP POST
+python -m tetralux.groundstation --serial /dev/tty.usb… --record  # USB serial
+```
+
+The firmware POSTs newline-delimited JSON (`seq,ts,pd,lux,mag,opt,temp,flags,chk`,
+8-bit XOR checksum) to `/ingest`. `--record` starts a logging session (off by
+default). Point `python -m tetralux.dashboard` at the same machine to view it.
+
+## Online logging (Firebase Realtime Database)
+
+Full per-packet logging goes to Firebase RTDB (one node per packet). Needs the
+`firebase` extra and your own credentials (never committed):
+
+```bash
+pip install -e ".[firebase]"
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccount.json
+export FIREBASE_DATABASE_URL=https://<project>.firebaseio.com
+```
+
+A **local JSONL mirror is always written** regardless, so full fidelity is
+preserved offline. See `docs/architecture.md` for the rate/cost trade-offs.
 
 ## Getting started
 

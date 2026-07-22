@@ -83,7 +83,7 @@ def test_create_app_builds_layout_and_demo():
     pytest.importorskip("dash")
     from dash import Dash
 
-    from tetralux.dashboard.app import build_demo_frames, create_app
+    from tetralux.dashboard.replay_app import build_demo_frames, create_app
 
     frames = build_demo_frames()
     assert len(frames) > 0
@@ -95,7 +95,7 @@ def test_create_app_builds_layout_and_demo():
 
 def test_create_app_rejects_empty_frames():
     pytest.importorskip("dash")
-    from tetralux.dashboard.app import create_app
+    from tetralux.dashboard.replay_app import create_app
 
     with pytest.raises(ValueError):
         create_app([])
