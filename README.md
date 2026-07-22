@@ -27,8 +27,8 @@ radiation pressure, validation, thermal, and color) lives in
 |-------|-------|--------|
 | **0** | Project scaffolding (src layout, tests, packaging) | ✅ done |
 | **1** | Sun-vector **simulator** (`tetralux/sim/`) — pure forward model / ground truth | ✅ done |
-| 2 | Estimation engine (`tetralux/estimation/`) — recover ŝ from readings, validate vs ground truth | planned |
-| 3 | Fault detection — saturation, low-signal, corrupted packets, multi-source ambiguity | planned |
+| **2** | Estimation engine (`tetralux/estimation/`) + validation/physics/spectral (formulas 1–16) | ✅ done |
+| **3** | Fault detection (`tetralux/faults/`) — low-signal, saturation, multi-source; packet-integrity primitives | ✅ done |
 | 4 | Fake telemetry (`tetralux/telemetry/`) — fixed-length binary packets, checksum, ~10–20 Hz | planned |
 | 5 | Dashboard (`tetralux/dashboard/`) — live vectors, health, replay | planned |
 
@@ -37,12 +37,16 @@ radiation pressure, validation, thermal, and color) lives in
 ```
 src/tetralux/
   constants.py        # FACE_NAMES, FACE_NORMALS, MIN_EPSILON (single source of truth)
-  sim/                # Phase 1: sun-vector simulator
-  estimation/         # Phase 2 (stub)
+  sim/                # Phase 1: sun-vector simulator (forward model)
+  estimation/         # Phase 2: estimator pipeline (formulas 1-5) + LowSignalError
+  validation/         # Phase 2: metrics (formulas 11-14)
+  physics/            # Phase 2: SRP physics (formulas 6-10)
+  spectral/           # Phase 2: CIE color validation (formulas 15-16)
+  faults/             # Phase 3: fault detection + packet-integrity primitives
   telemetry/          # Phase 4 (stub)
   dashboard/          # Phase 5 (stub)
 tests/                # pytest suite
-docs/architecture.md  # hardware map + locked math spec
+docs/architecture.md  # hardware map + locked math spec + fault-detection design
 ```
 
 ## Getting started

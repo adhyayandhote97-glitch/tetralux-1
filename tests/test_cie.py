@@ -19,7 +19,5 @@ def test_cie_chromaticity_zero_raises():
 
 def test_mccamy_n_worked_example():
     # Formula 16: n = (x - 0.3320) / (y - 0.1858)
-    # For x=0.30, y=0.40 the formula gives (-0.032)/(0.2142) = -0.14939.
-    # NOTE: the brief's worked example (-0.179) does not match this formula;
-    # we assert the mathematically correct value from the locked formula.
+    # For x=0.30, y=0.40: (-0.0320) / (0.2142) = -0.14939.
     assert mccamy_n(0.30, 0.40) == pytest.approx(-0.14939, abs=1e-4)

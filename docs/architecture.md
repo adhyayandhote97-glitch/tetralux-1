@@ -197,7 +197,7 @@ correlated color temperature (CCT).
 ```
 n = (x_cie − 0.3320) / (y_cie − 0.1858)
 ```
-Example: `x_cie=0.30, y_cie=0.40 → n≈−0.179`.
+Example: `x_cie=0.30, y_cie=0.40 → n = −0.0320/0.2142 ≈ −0.149`.
 
 ---
 
@@ -213,3 +213,28 @@ The Phase 1 simulator (`tetralux/sim/`) is the **forward model**:
 Phase 2 will feed `face_readings` through the LOCKED formulas 1–4 to recover `ŝ`,
 then validate against `light_dir` using formula 11. No estimation code exists in
 Phase 1 — only the data shape is guaranteed to support this.
+
+---
+
+## 5. Fault detection (Phase 3)
+
+`tetralux/faults/` classifies frame health *before* the estimate is trusted,
+mapping the four failure modes to concrete checks:
+
+| Failure mode | Where it's handled | How |
+|---|---|---|
+| Divide-by-zero (total light ≈ 0) | `estimator` raises `LowSignalError`; `detector` reports `LOW_SIGNAL` | `Σ R < MIN_EPSILON` |
+| Saturation clipping | `detector` → `SATURATION` | simulator's per-face `saturated` flag; `dominant_saturated` marks an unreliable direction |
+| Multi-source / ambiguous average | `detector` → `MULTI_SOURCE` | `opposition_ratio` = `2·Σ_pairs min(R⁺,R⁻) / Σ R` ∈ [0,1]; a single point source lights at most one face per opposite pair, so the ratio is ~0 |
+| Corrupted / truncated packets | `faults/packets.py` primitives (Phase 4 builds the concrete framing) | fixed-length check + 8-bit additive checksum |
+
+`assess_frame(...) → FrameHealth` returns a frozen report (`ok`, `faults`,
+`dominant_face`, `saturated_faces`, `opposition_ratio`). `safe_estimate(...)`
+pairs it with the estimator and returns `(vector_or_None, health)` — low-signal
+frames yield `None`; saturation/multi-source are surfaced in `health` but do not
+suppress the vector, leaving the trust decision to the caller.
+
+**Scope note:** packet integrity is provided as *format-agnostic primitives*
+(`checksum8`, `verify_checksum`, `validate_packet`) because the fixed-length
+binary packet layout is a Phase 4 (telemetry) artifact. Phase 4 will assemble
+the real packet on top of these.

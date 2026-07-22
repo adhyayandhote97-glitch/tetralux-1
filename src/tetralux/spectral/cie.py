@@ -31,9 +31,7 @@ def mccamy_n(x_cie: float, y_cie: float) -> float:
 
     ``n = (x_cie - 0.3320) / (y_cie - 0.1858)``.
 
-    Note: for ``x_cie=0.30, y_cie=0.40`` this evaluates to ``-0.1494`` (the
-    project brief's worked example of ``-0.179`` does not match this formula;
-    see the summary/notes for that phase).
+    Example: ``x_cie=0.30, y_cie=0.40 -> (-0.0320)/(0.2142) ~ -0.1494``.
 
     Raises:
         ValueError: if ``y_cie == 0.1858`` (division by zero).
