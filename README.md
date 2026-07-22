@@ -30,7 +30,7 @@ radiation pressure, validation, thermal, and color) lives in
 | **2** | Estimation engine (`tetralux/estimation/`) + validation/physics/spectral (formulas 1–16) | ✅ done |
 | **3** | Fault detection (`tetralux/faults/`) — low-signal, saturation, multi-source; packet-integrity primitives | ✅ done |
 | **4** | Fake telemetry (`tetralux/telemetry/`) — 17-byte binary packets, 8-bit checksum, resync parser, ~10–20 Hz | ✅ done |
-| 5 | Dashboard (`tetralux/dashboard/`) — live vectors, health, replay | planned |
+| **5** | Dashboard (`tetralux/dashboard/`) — Plotly Dash: 3D vector, face bars, error timeline, fault health, replay | ✅ done |
 
 ## Project layout
 
@@ -44,10 +44,24 @@ src/tetralux/
   spectral/           # Phase 2: CIE color validation (formulas 15-16)
   faults/             # Phase 3: fault detection + packet-integrity primitives
   telemetry/          # Phase 4: fixed-length binary packet codec + stream generator
-  dashboard/          # Phase 5 (stub)
+  dashboard/          # Phase 5: Plotly Dash app (replay layer is pure/numpy-only)
 tests/                # pytest suite
 docs/architecture.md  # hardware map + locked math spec + fault-detection design
 ```
+
+## Running the dashboard
+
+The dashboard needs the optional `dashboard` extra (Dash + Plotly):
+
+```bash
+pip install -e ".[dashboard]"
+python -m tetralux.dashboard      # serves http://127.0.0.1:8050
+```
+
+It replays a demo telemetry stream (a light source sweeping overhead) with a
+scrub/play slider, a 3D estimated-vs-true sun vector, per-face ADC bars, an
+angular-error timeline, and a live fault-health panel. The replay data layer
+(`tetralux.dashboard.build_replay`) is pure numpy and importable without Dash.
 
 ## Getting started
 

@@ -269,3 +269,25 @@ primitives:
   simulates + encodes one packet per direction, stamping frame *i* at
   `i / rate_hz` (nominal ~10–20 Hz; no real-time sleeping so replay can run at
   any speed).
+
+---
+
+## 7. Dashboard (Phase 5)
+
+`tetralux/dashboard/` is a Plotly Dash app over the whole pipeline. It is split
+so the data logic stays dependency-light:
+
+- **`replay.py` (pure, numpy-only):** `build_replay(stream, references, ...)`
+  runs each decoded packet through `safe_estimate` and scores it, yielding a
+  list of frozen `ReplayFrame` records (seq, time, readings, sun vector,
+  `FrameHealth`, angular error). Importable without Dash/Plotly, and unit tested.
+- **`figures.py` (needs plotly):** pure `go.Figure` builders — 3D estimated-vs-
+  true sun vector, per-face ADC bars (saturated faces in red), angular-error
+  timeline.
+- **`app.py` (needs dash):** `create_app(frames)` wires a scrub/play slider to
+  the figures plus an HTML fault-health panel; `main()` serves a demo stream on
+  port 8050 (`python -m tetralux.dashboard`).
+
+Dash and Plotly are an **optional extra** (`pip install -e ".[dashboard]"`); the
+core package stays numpy-only. Dashboard tests `importorskip` the extra so the
+suite passes without it.
