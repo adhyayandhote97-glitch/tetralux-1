@@ -1,30 +1,9 @@
-"""Phase 4: fake telemetry — fixed-length binary packets, 8-bit checksum, ~10-20 Hz.
+"""Telemetry wire format: newline-delimited JSON with an 8-bit XOR checksum."""
 
-Packet codec lives in :mod:`tetralux.telemetry.packet`; the stream generator in
-:mod:`tetralux.telemetry.generator`.
-"""
-
-from tetralux.telemetry.generator import generate_telemetry, pack_stream
-from tetralux.telemetry.packet import (
-    ADC_MAX,
-    DEFAULT_RATE_HZ,
-    PACKET_LEN,
-    SYNC_BYTE,
-    PacketError,
-    decode_packet,
-    encode_packet,
-    iter_packets,
+from tetralux.telemetry.json_frame import (
+    decode_json_frame,
+    encode_json_frame,
+    xor_checksum,
 )
 
-__all__ = [
-    "encode_packet",
-    "decode_packet",
-    "iter_packets",
-    "PacketError",
-    "PACKET_LEN",
-    "SYNC_BYTE",
-    "ADC_MAX",
-    "DEFAULT_RATE_HZ",
-    "generate_telemetry",
-    "pack_stream",
-]
+__all__ = ["decode_json_frame", "encode_json_frame", "xor_checksum"]

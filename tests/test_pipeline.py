@@ -36,6 +36,39 @@ def test_pipeline_produces_complete_record():
     assert rec.checksum_ok is True
 
 
+def test_pipeline_computes_srp_from_irradiance():
+    """SRP (formulas 6-10) must actually run, not sit orphaned in physics/."""
+    from tetralux.constants import (
+        CUBESAT_FACE_AREA,
+        DEFAULT_REFLECTIVITY,
+        SPEED_OF_LIGHT,
+    )
+
+    rec = process(frame_from_angles(30.0, 20.0, intensity=900.0), PipelineContext())
+
+    # Formula 6 applied to the +x face, checked against the record's own irradiance.
+    expected = (rec.irradiance["+x"] * CUBESAT_FACE_AREA / SPEED_OF_LIGHT) * (
+        1.0 + DEFAULT_REFLECTIVITY)
+    assert rec.srp_forces["+x"] == pytest.approx(expected)
+
+    # Faces turned away from the light contribute no force.
+    assert rec.srp_forces["-x"] == pytest.approx(0.0)
+
+    # Net force magnitude is positive and its direction tracks the sun vector,
+    # since radiation pressure pushes along the incoming light.
+    assert rec.srp_magnitude_n > 0.0
+    assert rec.srp_azimuth_deg == pytest.approx(rec.azimuth_deg, abs=1.0)
+    assert rec.srp_elevation_deg == pytest.approx(rec.elevation_deg, abs=1.0)
+
+
+def test_srp_is_zero_for_a_dark_frame():
+    rec = process(simulate_sensor_frame(np.array([1.0, 0.0, 0.0]), intensity=0.0),
+                  PipelineContext())
+    assert rec.srp_magnitude_n == pytest.approx(0.0)
+    assert rec.srp_azimuth_deg is None
+    assert rec.srp_elevation_deg is None
+
+
 def test_record_is_json_serializable():
     frame = frame_from_angles(45.0, 10.0)
     rec = process(frame, make_streaming_context())

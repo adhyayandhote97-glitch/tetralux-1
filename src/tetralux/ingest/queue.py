@@ -1,10 +1,4 @@
-"""Shared ingest queue helper (Phase 6).
-
-Both transports (HTTP and serial) forward raw JSON strings to one place. This
-thin module centralizes that as a thread-safe ``queue.Queue`` so producers
-(FastAPI handler thread, serial thread) and the processing consumer are
-decoupled without asyncio event-loop binding concerns.
-"""
+"""Shared ingest queue helper (Phase 6)."""
 
 from __future__ import annotations
 

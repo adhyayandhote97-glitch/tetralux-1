@@ -1,31 +1,14 @@
-"""HTTP ingest endpoint (Phase 6).
+"""HTTP ingest endpoint (Phase 6)."""
 
-A minimal FastAPI app exposing ``POST /ingest`` that matches the firmware's WiFi
-path. The handler does **no parsing** — it hands the raw body to a sink callable
-(enqueue-only, for backpressure safety); decoding happens downstream in the
-processing loop. ``GET /health`` returns monitor stats.
-
-Requires the ``ingest`` extra (fastapi). Imported lazily so the core stays light.
-"""
-
-# NOTE: deliberately no `from __future__ import annotations` here — FastAPI must
+# NOTE: deliberately no `from __future__ import annotations` here - FastAPI must
 # see the real ``Request`` class (a lazy local import) to treat it specially;
 # stringized annotations would resolve against module globals and fail.
 
-from typing import Callable, Optional
+from typing import Callable
 
 
 def create_ingest_app(on_frame: Callable[[str], None], monitor=None):
-    """Build the ingest FastAPI app.
-
-    Args:
-        on_frame: Called with each raw request body (str). Typically
-            ``queue.put_nowait``; a list ``.append`` works for tests.
-        monitor: Optional :class:`StreamMonitor` for the health endpoint.
-
-    Returns:
-        A configured ``fastapi.FastAPI`` instance.
-    """
+    """Build the ingest FastAPI app."""
     from fastapi import FastAPI, Request  # lazy import (optional dep)
 
     app = FastAPI(title="Tetralux-1 Ingest", version="1.0")

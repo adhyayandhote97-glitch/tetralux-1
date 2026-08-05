@@ -1,14 +1,4 @@
-"""Rolling and burst validation metrics (Phase 6).
-
-Wraps the pure formulas 11-13 (`angular_error`, `bias`, `repeatability`) with the
-state they need for live use:
-
-- `RollingValidator` — a 60-frame window for streaming (Real mode): each update
-  returns instantaneous angular error plus rolling bias/repeatability.
-- `burst_metrics` — for Virtual mode's instantaneous slider: draw a short burst of
-  noisy estimates at a fixed direction to get a meaningful bias/repeatability
-  without a running timeline.
-"""
+"""Rolling and burst validation metrics (Phase 6)."""
 
 from __future__ import annotations
 
@@ -37,11 +27,7 @@ class RollingValidator:
         self._errors: deque = deque(maxlen=window)
 
     def update(self, sun_vector: Optional[np.ndarray]) -> dict:
-        """Add an estimate and return angular error + rolling bias/repeatability.
-
-        A ``None`` estimate (low signal) records nothing and returns nan metrics.
-        Angles are in **degrees**.
-        """
+        """Add an estimate and return angular error + rolling bias/repeatability."""
         if sun_vector is None:
             return {"angular_error_deg": None, "bias_deg": None, "repeatability_deg": None}
         err = float(np.degrees(angular_error(sun_vector, self._ref)))
@@ -65,16 +51,7 @@ def burst_metrics(
     reference: np.ndarray,
     n: int = 30,
 ) -> dict:
-    """Bias/repeatability from ``n`` fresh estimates at a fixed direction.
-
-    Args:
-        sample_fn: Zero-arg callable returning a (noisy) sun vector, or ``None``.
-        reference: Ground-truth direction to measure error against.
-        n: Number of samples to draw.
-
-    Returns:
-        ``{"bias_deg", "repeatability_deg", "n"}`` in degrees.
-    """
+    """Bias/repeatability from ``n`` fresh estimates at a fixed direction."""
     ref = _unit(reference)
     errors = []
     for _ in range(n):

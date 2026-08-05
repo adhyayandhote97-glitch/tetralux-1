@@ -1,14 +1,4 @@
-"""Dashboard runtime state (Phase 9).
-
-Holds the two data paths behind the UI:
-
-- **Virtual** — `compute_virtual(az, el)` does one instantaneous pipeline pass for
-  the current slider position (plus a noise burst for bias/repeatability). No
-  stream, no buffer.
-- **Real** — a background thread drains the ingest queue (fed by HTTP/serial, or
-  the built-in simulated-device feed), decodes + monitors + processes each frame
-  into a rolling buffer, and records it while a session is active.
-"""
+"""Dashboard runtime state (Phase 9)."""
 
 from __future__ import annotations
 
@@ -103,12 +93,7 @@ class AppState:
         self._proc_thread.start()
 
     def load_calibration(self, path: str) -> Calibration:
-        """Load a calibration file and apply it to the real-mode stream context.
-
-        Rebuilds the streaming context (fresh rolling validator + thermal
-        analyzer) with the new calibration, so rolling stats reset but every
-        subsequent frame is corrected with the measured values.
-        """
+        """Load a calibration file and apply it to the real-mode stream context."""
         cal = Calibration.load(path)
         self.calibration = cal
         self.calibration_path = path

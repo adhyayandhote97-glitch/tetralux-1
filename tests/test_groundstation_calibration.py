@@ -1,5 +1,5 @@
 """Tests that a loaded calibration file actually reaches the processing context
-(Phase 10) — both for the headless groundstation runner and the dashboard's
+(Phase 10) - both for the headless groundstation runner and the dashboard's
 AppState.load_calibration."""
 
 import pytest

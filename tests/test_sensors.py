@@ -1,7 +1,6 @@
 """Tests for virtual sensor synthesis (Phase 7)."""
 
 import numpy as np
-import pytest
 
 from tetralux.constants import ADC_MAX
 from tetralux.frames import SensorFrame

@@ -1,14 +1,4 @@
-"""The ground-station frame contract (Phase 6).
-
-`SensorFrame` mirrors, field-for-field, the JSON the real prototype firmware
-transmits (see docs/architecture.md §8). It is the single currency flowing
-through the pipeline, produced two ways:
-
-- **Real:** decoded from hardware JSON by ``telemetry.json_frame.decode_json_frame``.
-- **Virtual:** synthesized by ``sim.sensors.simulate_sensor_frame``.
-
-`RejectedFrame` is returned instead when a raw payload fails to decode.
-"""
+"""The ground-station frame contract (Phase 6)."""
 
 from __future__ import annotations
 
@@ -25,10 +15,7 @@ def _utcnow() -> datetime:
 
 @dataclass
 class SensorFrame:
-    """One fully-populated sensor sample from all instruments.
-
-    Sensor arrays are in canonical face order (``FACE_NAMES``) where applicable.
-    """
+    """One fully-populated sensor sample from all instruments."""
 
     seq: int                              # sequence counter (dimensionless index)
     timestamp_ms: int                     # device time since boot (ms)

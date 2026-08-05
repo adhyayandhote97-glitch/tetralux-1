@@ -1,9 +1,4 @@
-"""OPT4048 colour validation (Phase 6).
-
-Aggregates the four OPT4048 tristimulus readings into an average CCT and a
-boolean-ish trust gate ("trust this estimate: yes/no"), reusing the CIE
-chromaticity and McCamy CCT from :mod:`tetralux.spectral.cie`.
-"""
+"""OPT4048 colour validation (Phase 6)."""
 
 from __future__ import annotations
 
@@ -51,13 +46,7 @@ def analyze_opt(
     reference: float = CCT_REFERENCE_DAYLIGHT,
     tolerance: float = CCT_TOLERANCE_DEFAULT,
 ) -> OPTResult:
-    """Compute per-sensor CCT, the average, and the trust gate.
-
-    Args:
-        opt_sensors: List of ``{"X","Y","Z","lux"}`` dicts (typically 4).
-        reference: Reference CCT in kelvin.
-        tolerance: Allowed deviation in kelvin.
-    """
+    """Compute per-sensor CCT, the average, and the trust gate."""
     ccts: list = []
     for o in opt_sensors:
         try:

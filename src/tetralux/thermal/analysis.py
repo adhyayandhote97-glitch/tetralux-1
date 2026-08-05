@@ -1,15 +1,9 @@
-"""Temperature analysis for the six DS18B20 sensors (Phase 6).
-
-Tracks a rolling history per sensor and, on each update, reports drift rate
-(°C/min, reusing formula 14), rolling mean, and a drift flag (>0.5 °C/min).
-Missing sensors (firmware sends JSON ``null``) are handled explicitly.
-"""
+"""Temperature analysis for the six DS18B20 sensors (Phase 6)."""
 
 from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -48,13 +42,7 @@ class TemperatureAnalyzer:
         self._last: dict = {sid: None for sid in SENSOR_IDS}  # (temp, timestamp_ms)
 
     def update(self, temperatures: list, timestamp_ms: int) -> ThermalStatus:
-        """Ingest one reading per sensor and return the current status.
-
-        Args:
-            temperatures: 6 values (degC) in ``SENSOR_IDS`` order; ``None`` if the
-                sensor is missing.
-            timestamp_ms: Device timestamp for this sample.
-        """
+        """Ingest one reading per sensor and return the current status."""
         temps, drifts, means, flags, missing = {}, {}, {}, {}, []
 
         for i, sid in enumerate(SENSOR_IDS):

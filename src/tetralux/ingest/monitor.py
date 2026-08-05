@@ -1,9 +1,4 @@
-"""Telemetry stream health monitor (Phase 6).
-
-Tracks packet counts, sequence gaps (dropped frames), checksum failures
-(corrupt frames), the live packet rate, and connection state (age of the last
-accepted frame). Feeds the dashboard's stream-status and connection indicators.
-"""
+"""Telemetry stream health monitor (Phase 6)."""
 
 from __future__ import annotations
 

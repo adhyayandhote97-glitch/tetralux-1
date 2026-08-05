@@ -1,29 +1,18 @@
-"""Tetralux-1 ground-station dashboard v2 (Phase 9).
-
-A multi-page Plotly Dash app with a Virtual/Real mode toggle:
-
-- **Virtual** — az/el sliders drive an *instantaneous* recompute of every value.
-- **Real** — a background stream (HTTP/serial ingest, or the built-in simulated
-  device) feeds a rolling buffer; az/el are read-only; connection status shows.
-
-Pages: Live · 3D Vector · Light in 3D · Time-series · History/Logs · About.
-Every value is rendered through the units registry (no bare numbers). Requires
-the ``dashboard`` extra (dash, plotly).
-"""
+"""Tetralux-1 ground-station dashboard v2 (Phase 9)."""
 
 from __future__ import annotations
 
 import tempfile
 from typing import Optional
 
-from dash import Dash, Input, Output, State, callback_context, dcc, html
+from dash import Dash, Input, Output, State, dcc, html
 
 from tetralux.constants import FACE_NAMES
 from tetralux.dashboard import units as U
-from tetralux.dashboard.figures import face_readings_figure
-from tetralux.dashboard.figures_v2 import (
+from tetralux.dashboard.figures import (
     cube_figure,
-    light_space_figure,
+    face_readings_figure,
+    srp_figure,
     timeseries_figure,
     weights_figure,
 )
@@ -37,33 +26,37 @@ _CARD = {"background": "#f6f8fb", "borderRadius": "8px", "padding": "14px",
          "flex": "1 1 320px"}
 
 ABOUT_MD = """
-### Tetralux-1 — Math & Pipeline
+### Tetralux-1: math and pipeline
 
-**Estimation (locked, formulas 1–4)**
-- 1 Corrected reading: `R_i = (V_i − D_i)·G_i`
-- 2 Face weight: `w_i = R_i / Σ R_j`
-- 3 Direction vector: `d = Σ w_i · n̂_i`
-- 4 Sun vector: `ŝ = d / |d|`  (LowSignalError if `Σ R_j < 1e-9` or `|d| < 1e-9`)
-- 5 Cosine proxy: `cos θ_i = R_i / V_max,i`
+Every formula below is computed on each frame and shown somewhere in this app.
 
-**Solar radiation pressure (formulas 6–10)**
-- 6 `F_i = (I_i·A/c)(1+ρ)` · 7 `F_net = Σ F_i·n̂_i` · 8 `|F_net|`
-- 9 `θ_SRP = atan2(F_y,F_x)` · 10 `φ_SRP = asin(F_z/|F_net|)`
+**Sun-vector estimation (formulas 1-5)**
+- 1 Corrected reading: `R_i = (V_i - D_i) * G_i`
+- 2 Face weight: `w_i = R_i / sum(R_j)`
+- 3 Direction vector: `d = sum(w_i * n_i)`
+- 4 Sun vector: `s = d / |d|`  (LowSignalError if `sum(R_j) < 1e-9` or `|d| < 1e-9`)
+- 5 Cosine proxy: `cos(theta_i) = R_i / V_max,i`
 
-**Validation (formulas 11–14)**
-- 11 Angular error: `θ = arccos(clamp(ŝ·ŝ_ref, −1, 1))`
-- 12 Repeatability: `σ = std(θ)` · 13 Bias: `mean(θ)` · 14 Drift: `ΔT/Δt`
+**Solar radiation pressure (formulas 6-10)**
+- 6 `F_i = (I_i * A / c) * (1 + rho)`, using the per-face irradiance from step 5
+- 7 `F_net = sum(F_i * n_i)`   8 `|F_net| = sqrt(Fx^2 + Fy^2 + Fz^2)`
+- 9 `az_SRP = atan2(Fy, Fx)`   10 `el_SRP = asin(Fz / |F_net|)`
+- Saturated faces are excluded: a clipped reading understates true irradiance.
 
-**Colour (formulas 15–16 + CCT gate)**
+**Validation (formulas 11-14)**
+- 11 Angular error: `theta = arccos(clamp(s . s_ref, -1, 1))`
+- 12 Repeatability: `std(theta)`   13 Bias: `mean(theta)`   14 Drift: `dT/dt`
+
+**Colour trust (formulas 15-18)**
 - 15 Chromaticity: `x = X/(X+Y+Z)`, `y = Y/(X+Y+Z)`
-- 16 McCamy n: `n = (x−0.3320)/(y−0.1858)`
-- CCT (signed McCamy): `−449n³ + 3525n² − 6823.3n + 5520.33`;
-  trust = PASS when `|CCT − 5500 K| ≤ 500 K`
+- 16 McCamy n: `n = (x - 0.3320) / (y - 0.1858)`
+- 17 CCT: `-449n^3 + 3525n^2 - 6823.3n + 5520.33` (signed coefficients)
+- 18 Trust gate: PASS when `|CCT - 5500 K| <= 500 K`
 
-**Pipeline:** SensorFrame → calibrate → estimate (+az/el) → validate → faults →
-thermal → OPT trust → GroundStationRecord. Real telemetry is newline-JSON with an
-8-bit XOR checksum; the online log is Firebase RTDB (per packet) plus a local
-JSONL mirror.
+**Pipeline:** SensorFrame -> calibrate -> estimate (+ az/el) -> SRP -> validate
+-> faults -> thermal -> colour trust -> GroundStationRecord. Telemetry is
+newline-delimited JSON with an 8-bit XOR checksum over the bytes preceding the
+checksum field.
 """
 
 
@@ -128,6 +121,15 @@ def _live_panel(rec, mode):
         _row("Bias", U.q(rec.bias_deg, "angle", 3)),
         _row("Repeatability", U.q(rec.repeatability_deg, "angle", 3)),
     ])
+    net = rec.srp_net
+    srp = _card("Solar radiation pressure", [
+        _row("Net force |F|", U.fmt(rec.srp_magnitude_n * 1e9, "nN", 3)),
+        _row("F_x", U.fmt(net[0] * 1e9, "nN", 3)),
+        _row("F_y", U.fmt(net[1] * 1e9, "nN", 3)),
+        _row("F_z", U.fmt(net[2] * 1e9, "nN", 3)),
+        _row("SRP azimuth", U.q(rec.srp_azimuth_deg, "angle", 2)),
+        _row("SRP elevation", U.q(rec.srp_elevation_deg, "angle", 2)),
+    ])
     integ = _card("Integrity & faults", [
         _row("Checksum", U.fmt(rec.checksum, "(8-bit)", 0)),
         _row("Checksum valid", U.fmt(rec.checksum_ok)),
@@ -149,7 +151,7 @@ def _live_panel(rec, mode):
         ])
     else:
         stream = _card("Telemetry stream", [
-            _row("Mode", "Virtual — instantaneous, no packet stream")])
+            _row("Mode", "Virtual - instantaneous, no packet stream")])
 
     opt = rec.opt
     optc = _card("OPT4048 colour trust", [
@@ -179,7 +181,7 @@ def _live_panel(rec, mode):
         _row("Processing time", U.fmt(rec.processing_time_ms, "ms", 2)),
     ])
 
-    cards = html.Div([est, val, integ, stream, optc, sysc],
+    cards = html.Div([est, val, srp, integ, stream, optc, sysc],
                      style={"display": "flex", "flexWrap": "wrap", "gap": "12px"})
     faces = html.Div([html.H4("Per-face sensors & calibration"), _face_table(rec)],
                      style={"marginTop": "14px"})
@@ -193,8 +195,8 @@ def _empty_ts(note):
 
 def _timeseries_figs(history):
     if not history:
-        return (_empty_ts("Sun vector — (Real mode / streaming only)"),
-                _empty_ts("Validation metrics — (Real mode / streaming only)"))
+        return (_empty_ts("Sun vector - (Real mode / streaming only)"),
+                _empty_ts("Validation metrics - (Real mode / streaming only)"))
     times = [r.timestamp_ms / 1000.0 for r in history]
     xs = [r.sun_vector[0] if r.sun_vector else None for r in history]
     ys = [r.sun_vector[1] if r.sun_vector else None for r in history]
@@ -212,13 +214,13 @@ def _timeseries_figs(history):
 
 def _conn_badge(state):
     if state.mode == "virtual":
-        return html.Span("Virtual mode — instantaneous",
+        return html.Span("Virtual mode - instantaneous",
                          style={"color": _ACCENT, "fontWeight": 600})
     s = state.connection()
     if s["connected"]:
         return html.Span(f'🟢 Connected · {s["rate_hz"]:.0f} Hz',
                          style={"color": "#2a9d8f", "fontWeight": 700})
-    return html.Span("🔴 Disconnected — waiting for telemetry",
+    return html.Span("🔴 Disconnected - waiting for telemetry",
                      style={"color": "#e63946", "fontWeight": 700})
 
 
@@ -280,12 +282,12 @@ def create_app(state: Optional[AppState] = None) -> Dash:
     live_page = page("page-live", [
         html.Div(id="live-panel"),
         html.Div([dcc.Graph(id="fig-faces", style={"flex": "1 1 420px"}),
-                  dcc.Graph(id="fig-weights", style={"flex": "1 1 420px"})],
+                  dcc.Graph(id="fig-weights", style={"flex": "1 1 420px"}),
+                  dcc.Graph(id="fig-srp", style={"flex": "1 1 420px"})],
                  style={"display": "flex", "flexWrap": "wrap", "gap": "12px",
                         "marginTop": "12px"}),
     ])
     vector_page = page("page-vector", [dcc.Graph(id="fig-cube")])
-    light_page = page("page-light", [dcc.Graph(id="fig-light")])
     ts_page = page("page-timeseries", [dcc.Graph(id="fig-ts-vector"),
                                        dcc.Graph(id="fig-ts-metrics")])
     history_page = page("page-history", [
@@ -315,14 +317,14 @@ def create_app(state: Optional[AppState] = None) -> Dash:
                "fontFamily": "system-ui, sans-serif", "padding": "14px"},
         children=[
             dcc.Location(id="url"),
-            html.H2("Tetralux-1 — CubeSat Sun-Direction Ground Station"),
+            html.H2("Tetralux-1 - CubeSat Sun-Direction Ground Station"),
             html.Div([
                 nav_link("Live", "/"), nav_link("3D Vector", "/vector"),
-                nav_link("Light in 3D", "/light"), nav_link("Time-series", "/timeseries"),
+                nav_link("Time-series", "/timeseries"),
                 nav_link("History / Logs", "/history"), nav_link("About", "/about"),
             ], style={"padding": "6px 0"}),
             controls,
-            live_page, vector_page, light_page, ts_page, history_page, about_page,
+            live_page, vector_page, ts_page, history_page, about_page,
             dcc.Interval(id="tick", interval=700, n_intervals=0),
         ],
     )
@@ -332,9 +334,9 @@ def create_app(state: Optional[AppState] = None) -> Dash:
 
 
 def _register_callbacks(app, state):
-    PAGES = ["page-live", "page-vector", "page-light", "page-timeseries",
+    PAGES = ["page-live", "page-vector", "page-timeseries",
              "page-history", "page-about"]
-    ROUTE = {"/": "page-live", "/vector": "page-vector", "/light": "page-light",
+    ROUTE = {"/": "page-live", "/vector": "page-vector",
              "/timeseries": "page-timeseries", "/history": "page-history",
              "/about": "page-about"}
 
@@ -372,7 +374,7 @@ def _register_callbacks(app, state):
             state.load_calibration(path)
         except (FileNotFoundError, ValueError, OSError) as exc:
             return f"Failed to load {path}: {exc}"
-        return f"Loaded {path} — applied to Real-mode processing."
+        return f"Loaded {path} - applied to Real-mode processing."
 
     @app.callback(
         Output("session-status", "children"), Output("session-btn", "children"),
@@ -391,8 +393,8 @@ def _register_callbacks(app, state):
 
     @app.callback(
         Output("live-panel", "children"), Output("fig-faces", "figure"),
-        Output("fig-weights", "figure"), Output("fig-cube", "figure"),
-        Output("fig-light", "figure"), Output("fig-ts-vector", "figure"),
+        Output("fig-weights", "figure"), Output("fig-srp", "figure"),
+        Output("fig-cube", "figure"), Output("fig-ts-vector", "figure"),
         Output("fig-ts-metrics", "figure"), Output("conn-badge", "children"),
         Input("tick", "n_intervals"), Input("mode", "value"),
         Input("az", "value"), Input("el", "value"))
@@ -402,27 +404,24 @@ def _register_callbacks(app, state):
         if mode == "virtual":
             rec = state.compute_virtual(float(az or 0), float(el or 0))
             reference = angles_to_vector(float(az or 0), float(el or 0))
-            light_dir = reference
         else:
             rec = state.latest()
             reference = state.stream_ctx.reference_vector if state.stream_ctx else None
-            light_dir = rec.sun_vector if rec else None
             history = state.history(400)
 
         if rec is None:
-            empty = weights_figure({})
             return (_live_panel(None, mode), face_readings_figure({}),
-                    empty, cube_figure(), light_space_figure(),
+                    weights_figure({}), srp_figure({}), cube_figure(),
                     _empty_ts("Sun vector"), _empty_ts("Validation"),
                     _conn_badge(state))
 
         saturated = {f: f in rec.saturated_faces for f in FACE_NAMES}
         faces_fig = face_readings_figure(rec.photodiodes, saturated)
         wfig = weights_figure(rec.weights)
+        sfig = srp_figure(rec.srp_forces)
         cube = cube_figure(rec.sun_vector, reference)
-        light = light_space_figure(light_dir)
         ts_vec, ts_met = _timeseries_figs(history)
-        return (_live_panel(rec, mode), faces_fig, wfig, cube, light,
+        return (_live_panel(rec, mode), faces_fig, wfig, sfig, cube,
                 ts_vec, ts_met, _conn_badge(state))
 
     # ---- history page ----
@@ -440,7 +439,7 @@ def _register_callbacks(app, state):
         rows = [header]
         for s in sessions:
             rows.append(html.Tr([
-                html.Td(s.session_id), html.Td(s.started_at or "—"),
+                html.Td(s.session_id), html.Td(s.started_at or "-"),
                 html.Td(U.fmt(s.packet_count, "(count)", 0)),
                 html.Td(s.size_human()), html.Td(U.human_bytes(s.rtdb_bytes_est)),
                 html.Td(U.fmt(s.first_ts_ms, "ms", 0)),
@@ -502,11 +501,7 @@ def _register_callbacks(app, state):
 
 
 def main(port: int = 8050, debug: bool = False) -> None:
-    """Launch the ground-station dashboard (Virtual mode by default).
-
-    Enables Firebase RTDB online logging automatically if the credentials env
-    vars are set; otherwise logs locally only (still full fidelity).
-    """
+    """Launch the ground-station dashboard (Virtual mode by default)."""
     from tetralux.store import make_online_store
 
     create_app(AppState(online_store=make_online_store())).run(port=port, debug=debug)

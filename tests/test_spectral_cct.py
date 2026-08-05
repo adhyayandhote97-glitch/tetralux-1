@@ -2,7 +2,6 @@
 
 import math
 
-import pytest
 
 from tetralux.spectral.cie import mccamy_cct, trust_gate
 from tetralux.spectral.opt import analyze_opt

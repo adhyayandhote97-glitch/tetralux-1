@@ -1,8 +1,4 @@
-"""Units registry + formatters (Phase 9, Decision 7).
-
-Every value shown in the dashboard is rendered through here so nothing appears as
-a bare number: each carries its unit, or is explicitly labeled "dimensionless".
-"""
+"""Units registry + formatters (Phase 9, Decision 7)."""
 
 from __future__ import annotations
 
@@ -28,8 +24,8 @@ UNITS = {
     "seq": "index (dimensionless)",
     "checksum": "8-bit",
     "flags": "bitfield",
-    "confidence": "dimensionless (0–1)",
-    "opposition": "dimensionless (0–1)",
+    "confidence": "dimensionless (0-1)",
+    "opposition": "dimensionless (0-1)",
     "mag": "raw",
     "bytes": "B",
     "count": "count",
@@ -40,10 +36,10 @@ UNITS = {
 def fmt(value, unit: Optional[str] = None, nd: int = 3) -> str:
     """Format a value with its unit; None/NaN render as an em dash."""
     if value is None:
-        return "—"
+        return "-"
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):
-            return "—"
+            return "-"
         text = f"{value:.{nd}f}"
     elif isinstance(value, bool):
         text = "yes" if value else "no"

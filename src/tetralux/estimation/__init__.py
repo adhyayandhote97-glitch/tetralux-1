@@ -1,8 +1,4 @@
-"""Phase 2: estimation engine — recover the sun vector from face readings.
-
-Implements the LOCKED formulas 1-4 (see docs/architecture.md) and raises
-``LowSignalError`` when total signal < MIN_EPSILON.
-"""
+"""Phase 2: estimation engine - recover the sun vector from face readings."""
 
 from tetralux.estimation.estimator import (
     LowSignalError,

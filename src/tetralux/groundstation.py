@@ -1,16 +1,4 @@
-"""Ground-station runner — the real-hardware path (Phase 9).
-
-Starts the HTTP ingest endpoint (matching the firmware's WiFi POST) and, if
-requested, a serial reader; decodes + monitors + processes every frame; and
-records to the local JSONL log + Firebase RTDB while a session is active.
-
-Session logging is **off unless `--record`** is passed (Decision 8, CLI form).
-
-    python -m tetralux.groundstation --port 8000 --record
-    python -m tetralux.groundstation --serial /dev/tty.usbmodemXXXX --record
-
-Requires the ``ingest`` extra (fastapi, uvicorn, pyserial).
-"""
+"""Ground-station runner - the real-hardware path (Phase 9)."""
 
 from __future__ import annotations
 
@@ -31,14 +19,7 @@ from tetralux.telemetry.json_frame import decode_json_frame
 def run(host: str = "0.0.0.0", port: int = 8000, record: bool = False,
         serial_port: "str | None" = None, base_dir: str = "data/logs",
         online_store=None, calibration: "Calibration | None" = None) -> None:
-    """Run the ingest server + processing loop (blocking).
-
-    Args:
-        calibration: Per-face calibration to apply to incoming frames. Defaults
-            to the built-in placeholder values (see ``calibration.py``) if not
-            given — pass the result of ``Calibration.load(path)`` (produced by
-            ``calibration_tool.py``) for a real, measured prototype.
-    """
+    """Run the ingest server + processing loop (blocking)."""
     frame_queue = create_frame_queue()
     monitor = StreamMonitor()
     ctx = make_streaming_context(monitor=monitor, calibration=calibration)

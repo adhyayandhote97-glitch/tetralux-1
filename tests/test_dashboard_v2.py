@@ -1,6 +1,5 @@
 """Tests for the v2 ground-station dashboard (Phase 9)."""
 
-import math
 import time
 
 import pytest
@@ -13,26 +12,28 @@ def test_units_never_bare():
     assert U.q(3.14159, "angle").endswith("°")
     assert U.q(0.25, "weight") == "0.250 dimensionless"
     assert U.q(5500.0, "cct", 0) == "5500 K"
-    assert U.fmt(None) == "—"
-    assert U.fmt(float("nan")) == "—"
+    assert U.fmt(None) == "-"
+    assert U.fmt(float("nan")) == "-"
     assert U.fmt(True) == "yes"
     assert U.human_bytes(2048) == "2.0 KiB"
 
 
-def test_figures_v2_build():
+def test_figures_build():
     pytest.importorskip("plotly")
     import plotly.graph_objects as go
 
-    from tetralux.dashboard.figures_v2 import (
+    from tetralux.dashboard.figures import (
         cube_figure,
-        light_space_figure,
+        face_readings_figure,
+        srp_figure,
         timeseries_figure,
         weights_figure,
     )
 
     assert isinstance(cube_figure([1, 0, 0], [1, 0, 0]), go.Figure)
-    assert isinstance(light_space_figure([0, 0, 1]), go.Figure)
     assert isinstance(weights_figure({f: 1 / 6 for f in FACE_NAMES}), go.Figure)
+    assert isinstance(srp_figure({f: 1e-8 for f in FACE_NAMES}), go.Figure)
+    assert isinstance(face_readings_figure({f: 100 for f in FACE_NAMES}), go.Figure)
     assert isinstance(timeseries_figure([0, 1, 2], {"a": [1, None, 3]}, "t", "y"), go.Figure)
     assert isinstance(cube_figure(), go.Figure)  # no-data variant
 

@@ -1,14 +1,4 @@
-"""Firebase Realtime Database online store (Phase 8).
-
-Writes **one node per packet** at ``sessions/{sid}/packets/{key}`` — no per-write
-op billing (RTDB is priced on storage/bandwidth), so it sustains the 100 Hz
-target. Credentials come from the environment
-(``GOOGLE_APPLICATION_CREDENTIALS``) plus a ``databaseURL``; they are never
-handled in code or committed.
-
-`FakeStore` is an in-memory stand-in used by tests and by the dashboard when no
-Firebase credentials are configured.
-"""
+"""Firebase Realtime Database online store (Phase 8)."""
 
 from __future__ import annotations
 
@@ -22,12 +12,7 @@ def _size(record_dict: dict) -> int:
 
 
 def make_online_store():
-    """Return an :class:`RTDBStore` if Firebase env vars are set, else ``None``.
-
-    Requires both ``GOOGLE_APPLICATION_CREDENTIALS`` and ``FIREBASE_DATABASE_URL``.
-    Lets the dashboard/CLI enable online logging with no code change — and stay
-    local-only (still full fidelity) when unconfigured.
-    """
+    """Return an :class:`RTDBStore` if Firebase env vars are set, else ``None``."""
     if not (os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
             and os.environ.get("FIREBASE_DATABASE_URL")):
         return None

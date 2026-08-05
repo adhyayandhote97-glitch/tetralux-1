@@ -1,15 +1,4 @@
-"""The processing pipeline (Phase 6).
-
-`process(frame, ctx)` turns one `SensorFrame` (real or virtual) into a complete
-`GroundStationRecord`, chaining the earlier phases:
-
-    calibrate -> estimate (+ az/el) -> validate -> faults -> thermal -> OPT trust
-
-It is pure w.r.t. the frame; the only state lives in `PipelineContext`
-(rolling validator, thermal analyzer, stream monitor) for streaming Real mode.
-Virtual mode passes a context without those and supplies the true direction as
-the angular-error reference.
-"""
+"""The processing pipeline (Phase 6)."""
 
 from __future__ import annotations
 
@@ -23,10 +12,13 @@ from tetralux import calibration as calib
 from tetralux.constants import (
     CCT_REFERENCE_DAYLIGHT,
     CCT_TOLERANCE_DEFAULT,
+    CUBESAT_FACE_AREA,
+    DEFAULT_REFLECTIVITY,
     FACE_NAMES,
     FACE_NORMALS,
     MIN_EPSILON,
     SATURATION_ADC,
+    SPEED_OF_LIGHT,
 )
 from tetralux.estimation.estimator import (
     LowSignalError,
@@ -37,6 +29,13 @@ from tetralux.estimation.estimator import (
 from tetralux.faults.detector import assess_frame
 from tetralux.frames import SensorFrame
 from tetralux.ingest.monitor import StreamMonitor
+from tetralux.physics.srp import (
+    srp_azimuth,
+    srp_elevation,
+    srp_force_per_face,
+    srp_magnitude,
+    srp_net_force,
+)
 from tetralux.record import GroundStationRecord
 from tetralux.spectral.opt import analyze_opt
 from tetralux.thermal.analysis import TemperatureAnalyzer
@@ -62,6 +61,8 @@ class PipelineContext:
     opt_tolerance: float = CCT_TOLERANCE_DEFAULT
     low_signal_total: float = LOW_SIGNAL_TOTAL
     opposition_threshold: float = 0.20
+    face_area: float = CUBESAT_FACE_AREA
+    reflectivity: float = DEFAULT_REFLECTIVITY
 
 
 def make_streaming_context(
@@ -85,14 +86,7 @@ def process(
     ctx: Optional[PipelineContext] = None,
     reference: Optional[np.ndarray] = None,
 ) -> GroundStationRecord:
-    """Process one frame into a full :class:`GroundStationRecord`.
-
-    Args:
-        frame: The decoded/synthesized sensor frame.
-        ctx: Pipeline context (defaults to a fresh stateless one).
-        reference: Ground-truth direction for angular error (Virtual mode passes
-            the true light direction). Falls back to ``ctx.reference_vector``.
-    """
+    """Process one frame into a full :class:`GroundStationRecord`."""
     ctx = ctx or PipelineContext()
     t0 = time.perf_counter()
 
@@ -125,6 +119,23 @@ def process(
             vector = None
 
     confidence = min(1.0, total / _CONFIDENCE_SCALE)
+
+    # --- solar radiation pressure (formulas 6-10) ---
+    # Irradiance above is the I_i these need; saturated faces are excluded
+    # because a clipped reading understates the true irradiance.
+    srp_forces = {
+        f: (0.0 if f in saturated_faces else srp_force_per_face(
+            irradiance[f], ctx.face_area, SPEED_OF_LIGHT, ctx.reflectivity))
+        for f in FACE_NAMES
+    }
+    srp_net = srp_net_force([srp_forces[f] for f in FACE_NAMES],
+                            [FACE_NORMALS[f] for f in FACE_NAMES])
+    srp_mag = srp_magnitude(srp_net)
+    if srp_mag > MIN_EPSILON:
+        srp_az = float(np.degrees(srp_azimuth(srp_net[0], srp_net[1])))
+        srp_el = float(np.degrees(srp_elevation(srp_net[2], srp_mag)))
+    else:
+        srp_az = srp_el = None
 
     # --- fault / health (reuses assess_frame; same floored calibration) ---
     health = assess_frame(
@@ -190,6 +201,11 @@ def process(
         azimuth_deg=azimuth,
         elevation_deg=elevation,
         confidence=confidence,
+        srp_forces=srp_forces,
+        srp_net=[float(c) for c in srp_net],
+        srp_magnitude_n=srp_mag,
+        srp_azimuth_deg=srp_az,
+        srp_elevation_deg=srp_el,
         angular_error_deg=angular_error_deg,
         bias_deg=bias_deg,
         repeatability_deg=repeatability_deg,

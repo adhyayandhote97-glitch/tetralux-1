@@ -1,30 +1,4 @@
-"""Phase 1 — sun-vector simulator (pure forward model).
-
-Ground truth for later phases. Models six face-mounted photodiodes on a 1U
-CubeSat and, given a light direction, produces the raw per-face readings a real
-sensor array would report. No hardware, no serial — just physics.
-
-The simulator emits raw pre-calibration voltages ``V_i``. Optional per-face gain
-``G_i`` and dark offset ``D_i`` let it produce readings that Phase 2's
-calibration step inverts exactly: ``corrected_reading(V_i, D_i, G_i)`` recovers
-the noise-free optical signal ``S_i``.
-
-Sensor pipeline, applied per face in this exact order:
-
-    S     = intensity * max(0, dot(face_normal, light_dir))   # Lambertian cosine (S_i)
-    value = S / G_i + D_i                                      # raw voltage V_i
-    value = value + N(0, noise_std)                           # Gaussian noise
-    value = max(0.0, value)                                   # no negative photocurrent
-    if saturation_limit is not None and value >= saturation_limit:
-        value, saturated = saturation_limit, True             # clip + flag
-
-With the defaults (``gain=1.0``, ``dark_current=0.0``) this reduces to
-``V_i = S_i`` — the plain forward model. Because calibration is the inverse
-(``R_i = (V_i - D_i) * G_i``), a noise-free reading round-trips back to ``S_i``.
-
-Everything here is a pure function with type hints — no classes, no global
-state. Noise is made reproducible by passing a seeded ``numpy`` generator.
-"""
+"""Phase 1 - sun-vector simulator (pure forward model)."""
 
 from __future__ import annotations
 
@@ -36,28 +10,14 @@ from tetralux.constants import FACE_NAMES, FACE_NORMALS, MIN_EPSILON
 
 
 def _resolve(param: "float | Mapping[str, float]", face: str, default: float) -> float:
-    """Resolve a scalar-or-per-face parameter to a float for ``face``.
-
-    A plain number applies to every face; a mapping supplies per-face values
-    (falling back to ``default`` for any face it omits).
-    """
+    """Resolve a scalar-or-per-face parameter to a float for ``face``."""
     if isinstance(param, Mapping):
         return float(param.get(face, default))
     return float(param)
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
-    """Return ``v`` normalized to unit length.
-
-    Args:
-        v: Any 3-vector.
-
-    Returns:
-        ``v / |v|`` as a float array.
-
-    Raises:
-        ValueError: if ``|v| < MIN_EPSILON`` (no direction can be defined).
-    """
+    """Return ``v`` normalized to unit length."""
     v = np.asarray(v, dtype=float)
     norm = float(np.linalg.norm(v))
     if norm < MIN_EPSILON:
@@ -76,33 +36,7 @@ def simulate_faces(
     rng: np.random.Generator | None = None,
     gain: "float | Mapping[str, float]" = 1.0,
 ) -> dict[str, dict]:
-    """Simulate the six photodiode face readings for a given light direction.
-
-    Args:
-        light_dir: 3-vector pointing from the cube toward the light source. Need
-            not be unit length; it is normalized internally.
-        intensity: Peak optical signal of a face pointed straight at the light.
-        noise_std: Standard deviation of additive Gaussian noise, per face.
-        dark_current: Dark offset ``D_i`` added to every face. Scalar (same for
-            all faces) or a mapping of face name -> offset. This is the value
-            Phase 2's ``corrected_reading`` subtracts back out.
-        saturation_limit: If set, any reading ``>=`` this value is clipped to it
-            and flagged as saturated.
-        rng: Optional NumPy ``Generator`` for reproducible noise. If ``None`` and
-            ``noise_std > 0``, a fresh ``default_rng()`` is created
-            (nondeterministic). Pass ``np.random.default_rng(seed)`` for
-            reproducible output.
-        gain: Per-face responsivity ``G_i``. Scalar or a mapping of face name ->
-            gain. The signal is divided by ``G_i`` so that calibration
-            (which multiplies by ``G_i``) recovers it. Defaults to 1.0.
-
-    Returns:
-        Dict keyed by face name (``"+x"``, ``"-x"``, ...) in canonical order.
-        Each value is ``{"reading": float, "saturated": bool}``.
-
-    Raises:
-        ValueError: if ``light_dir`` has near-zero length.
-    """
+    """Simulate the six photodiode face readings for a given light direction."""
     direction = _unit(light_dir)
 
     if noise_std > 0.0 and rng is None:
@@ -139,34 +73,7 @@ def generate_sweep(
     rng: np.random.Generator | None = None,
     gain: "float | Mapping[str, float]" = 1.0,
 ) -> list[tuple[np.ndarray, dict]]:
-    """Sweep the light direction across the +z hemisphere and return ground-truth
-    ``(light_dir, face_readings)`` pairs.
-
-    Azimuth runs ``[0, 360)`` degrees and elevation runs ``[0, 90]`` degrees,
-    both at ``step_deg`` spacing. At the pole (elevation 90 deg) every azimuth
-    collapses to the same ``+z`` vector, so a single sample is emitted there.
-    Ordering is deterministic (elevation-major, then azimuth).
-
-    Each ``light_dir`` is a unit vector and is the ground-truth ``s_hat_ref`` for
-    Phase 2 angular-error validation (formula 11 in ``docs/architecture.md``).
-
-    Args:
-        step_deg: Angular spacing, in degrees, for both azimuth and elevation.
-        intensity: Passed through to :func:`simulate_faces`.
-        noise_std: Passed through to :func:`simulate_faces`.
-        dark_current: Passed through to :func:`simulate_faces`.
-        saturation_limit: Passed through to :func:`simulate_faces`.
-        rng: Passed through to :func:`simulate_faces` for reproducible noise.
-        gain: Passed through to :func:`simulate_faces`.
-
-    Returns:
-        List of ``(light_dir, face_readings)`` pairs, where ``light_dir`` is a
-        unit ``np.ndarray`` and ``face_readings`` is the dict returned by
-        :func:`simulate_faces`.
-
-    Raises:
-        ValueError: if ``step_deg`` is not positive.
-    """
+    """Sweep the light direction across the +z hemisphere and return ground-truth ``(light_dir, face_readings)`` pairs."""
     if step_deg <= 0.0:
         raise ValueError(f"step_deg must be positive, got {step_deg}")
 

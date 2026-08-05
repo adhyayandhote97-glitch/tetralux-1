@@ -1,6 +1,5 @@
 """Tests for the logging store: local JSONL, session control, RTDB, query (Phase 8)."""
 
-import pytest
 
 from tetralux.pipeline import PipelineContext, process
 from tetralux.sim.sensors import frame_from_angles

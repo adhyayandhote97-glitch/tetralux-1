@@ -1,10 +1,4 @@
-"""Phase 8: logging store — local JSONL mirror + Firebase RTDB, with manual
-session control and history queries.
-
-``RTDBStore`` needs the ``firebase`` extra and is imported lazily by its own
-module; the pure pieces (local log, session control, query, FakeStore) are
-re-exported here.
-"""
+"""Phase 8: logging store - local JSONL mirror + Firebase RTDB, with manual session control and history queries."""
 
 from tetralux.store.local_log import LocalLog, export_csv
 from tetralux.store.query import (

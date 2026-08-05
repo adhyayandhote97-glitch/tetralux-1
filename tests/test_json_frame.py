@@ -70,8 +70,8 @@ def test_out_of_range_pd_rejected():
 
 
 def test_decoder_accepts_independently_constructed_firmware_string():
-    """Firmware-contract proof (Phase 10): build a wire string by hand — with
-    different field order and formatting than our own encoder produces — and
+    """Firmware-contract proof (Phase 10): build a wire string by hand - with
+    different field order and formatting than our own encoder produces - and
     confirm decode_json_frame() accepts it. Only xor_checksum() (the shared
     algorithm both sides must implement) is reused to compute the trailer;
     everything else here is independent of encode_json_frame()."""
@@ -91,7 +91,7 @@ def test_decoder_accepts_independently_constructed_firmware_string():
         '}'
     )
     # A genuine firmware implementation appends the checksum after building the
-    # rest — reuse only the shared algorithm to compute it, exactly as it must.
+    # rest - reuse only the shared algorithm to compute it, exactly as it must.
     wire = body[:-1] + f',"chk":{xor_checksum(body[:-1])}' + "}"
 
     result = decode_json_frame(wire)

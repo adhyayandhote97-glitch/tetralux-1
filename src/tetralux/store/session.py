@@ -1,11 +1,4 @@
-"""Manual session control (Phase 8, Decision 8).
-
-Logging is **off until `start()`** — never on app launch. While a session is
-active, `record()` fans out to the local JSONL log and (if configured) Firebase
-RTDB, tracking packet count, duration, and accumulated bytes (local + estimated
-RTDB). `stop()` finalizes and prints a summary. No automatic pruning, retention,
-or throttling — visibility only, so old sessions can be deleted manually.
-"""
+"""Manual session control (Phase 8, Decision 8)."""
 
 from __future__ import annotations
 
@@ -72,7 +65,7 @@ class SessionController:
         return self._info
 
     def record(self, record: GroundStationRecord) -> None:
-        """Persist one record — a no-op when no session is active."""
+        """Persist one record - a no-op when no session is active."""
         if not self.active or self._recorder is None:
             return
         local_bytes, online_bytes = self._recorder.record(record.to_dict())

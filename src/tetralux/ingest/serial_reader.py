@@ -1,10 +1,4 @@
-"""Serial (USB) telemetry reader (Phase 6).
-
-The firmware's fallback path prints the same newline-delimited JSON over USB
-serial. This reader runs a background thread, splits on newlines, and forwards
-any line starting with ``{`` to a sink callable (enqueue-only, matching the HTTP
-path). Requires the ``ingest`` extra (pyserial); imported lazily.
-"""
+"""Serial (USB) telemetry reader (Phase 6)."""
 
 from __future__ import annotations
 

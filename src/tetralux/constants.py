@@ -1,9 +1,4 @@
-"""Cross-phase constants for Tetralux-1.
-
-Single source of truth for the six cube-face definitions and the numerical
-epsilon guard, shared by the simulator (Phase 1) and the estimation engine
-(Phase 2) so they can never disagree.
-"""
+"""Cross-phase constants for Tetralux-1."""
 
 from __future__ import annotations
 
@@ -35,6 +30,10 @@ SATURATION_ADC: int = 1020
 SOLAR_CONSTANT: float = 1361.0   # W/m^2, mean solar irradiance at 1 AU
 CUBESAT_FACE_AREA: float = 0.01  # m^2, one 1U face (0.1 m x 0.1 m)
 SPEED_OF_LIGHT: float = 3.0e8    # m/s
+
+# Surface reflectivity used for solar radiation pressure (0 absorbs, 1 reflects).
+# 0.30 corresponds to anodised aluminium.
+DEFAULT_REFLECTIVITY: float = 0.30
 
 # OPT4048 colour-trust reference (correlated colour temperature).
 CCT_REFERENCE_DAYLIGHT: float = 5500.0  # K

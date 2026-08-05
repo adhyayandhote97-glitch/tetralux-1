@@ -1,16 +1,4 @@
-"""Real-hardware JSON telemetry codec (Phase 6).
-
-The firmware transmits one newline-terminated ASCII JSON object per sample:
-
-    {"seq":N,"ts":N,"pd":[6],"lux":[6],"mag":{x,y,z},"opt":[4],"temp":[6],"flags":N,"chk":N}
-
-The 8-bit checksum is an **XOR of the raw ASCII bytes of the body up to (but not
-including) `,"chk"`** — the exact bytes on the wire, in transmit order. We
-reproduce that byte-for-byte rather than re-serializing the parsed object (the v0
-parser's re-serialize approach broke on float formatting, e.g. `25.00` vs
-`25.0`). ``encode_json_frame`` emits the identical format so the virtual twin and
-the real device share one codec.
-"""
+"""Real-hardware JSON telemetry codec (Phase 6)."""
 
 from __future__ import annotations
 
@@ -37,11 +25,7 @@ def xor_checksum(data: Union[str, bytes]) -> int:
 
 
 def encode_json_frame(frame: SensorFrame) -> str:
-    """Serialize a :class:`SensorFrame` to the firmware's exact wire string.
-
-    Float formats match the firmware (`lux` %.1f, `opt` %.3f, `temp` %.2f, `null`
-    for a missing temperature), so the appended checksum verifies on decode.
-    """
+    """Serialize a :class:`SensorFrame` to the firmware's exact wire string."""
     pd = ",".join(str(int(v)) for v in frame.photodiodes)
     lux = ",".join(f"{float(v):.1f}" for v in frame.lux)
     m = frame.magnetometer
@@ -53,7 +37,7 @@ def encode_json_frame(frame: SensorFrame) -> str:
     )
     temp = ",".join("null" if t is None else f"{float(t):.2f}" for t in frame.temperatures)
 
-    # Body up to (not including) the checksum field — this is what gets XOR'd.
+    # Body up to (not including) the checksum field - this is what gets XOR'd.
     body = (
         f'{{"seq":{int(frame.seq)},"ts":{int(frame.timestamp_ms)},'
         f'"pd":[{pd}],"lux":[{lux}],"mag":{mag},"opt":[{opt}],'
@@ -104,12 +88,7 @@ def decode_json_frame(
     source: str = "real",
     received_at: Union[datetime, None] = None,
 ) -> Union[SensorFrame, RejectedFrame]:
-    """Decode one raw JSON payload into a :class:`SensorFrame` or :class:`RejectedFrame`.
-
-    Validation order: locate checksum region -> JSON parse -> structure/range ->
-    byte-exact XOR checksum. Sequence-gap tracking is stateful and lives in
-    :class:`tetralux.ingest.monitor.StreamMonitor`, not here.
-    """
+    """Decode one raw JSON payload into a :class:`SensorFrame` or :class:`RejectedFrame`."""
     if received_at is None:
         received_at = datetime.now(timezone.utc)
     text = raw.decode("ascii", "replace") if isinstance(raw, bytes) else raw

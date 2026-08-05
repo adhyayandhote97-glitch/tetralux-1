@@ -1,13 +1,4 @@
-"""Virtual sensor synthesis (Phase 7).
-
-Extends the Phase 1 photodiode simulator into a *full* `SensorFrame` — lux,
-temperature, OPT4048 colour, and magnetometer — so Virtual mode can populate
-every dashboard panel without hardware. Photodiodes remain the physical model
-(`simulate_faces`); the other sensors use simple, plausible models.
-
-The result is round-tripped through the real JSON codec so a virtual frame is
-byte-identical to what the firmware would send (correct checksum included).
-"""
+"""Virtual sensor synthesis (Phase 7)."""
 
 from __future__ import annotations
 
@@ -45,23 +36,7 @@ def simulate_sensor_frame(
     gain: Optional[dict] = None,
     dark: Optional[dict] = None,
 ) -> SensorFrame:
-    """Synthesize a full sensor frame for a given light direction.
-
-    Args:
-        light_dir: Direction from the cube toward the light (need not be unit).
-        seq: Sequence counter.
-        timestamp_ms: Device timestamp (ms); also drives a tiny thermal ramp.
-        intensity: Peak photodiode signal (maps ~1:1 to ADC counts).
-        noise_std: Per-face Gaussian noise (ADC counts) applied to photodiodes.
-        rng: Optional seeded generator for reproducible noise.
-        source_chromaticity: (x, y) CIE coords of the light source (sets OPT CCT).
-        base_temp_c: Baseline temperature for the DS18B20 sensors.
-        heading_deg: Magnetometer heading.
-        received_at: Ground-station receive time (defaults to now).
-
-    Returns:
-        A wire-valid :class:`SensorFrame` (``source="virtual"``).
-    """
+    """Synthesize a full sensor frame for a given light direction."""
     if rng is None and noise_std > 0.0:
         rng = np.random.default_rng()
     received_at = received_at or datetime.now(timezone.utc)

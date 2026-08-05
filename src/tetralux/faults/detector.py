@@ -1,24 +1,4 @@
-"""Phase 3 — fault detection for the sun-direction estimate.
-
-Classifies the health of a single sensor frame *before* trusting its estimate,
-covering three of the project's failure modes:
-
-- **Low signal** — total light ~ 0 (the divide-by-zero case the estimator
-  guards with ``LowSignalError``); here it is reported as a status, not raised.
-- **Saturation** — one or more faces pinned at the ADC rail; the direction is
-  unreliable when the *dominant* face is saturated.
-- **Multi-source ambiguity** — the light field does not look like a single point
-  source, so the weighted-average vector is a meaningless "in between" direction.
-
-The multi-source signal uses a simple, interpretable property of a single point
-source: within each opposite face pair (``+x``/``-x`` etc.) at most one face is
-lit, so ``min(R+, R-)`` is ~0. When both faces of a pair are strongly lit, light
-is arriving from both sides. ``opposition_ratio`` aggregates this into ``[0, 1]``
-(0 = clean single source, 1 = fully bidirectional).
-
-Packet-integrity faults (corrupted/truncated telemetry) live in
-:mod:`tetralux.faults.packets`.
-"""
+"""Phase 3 - fault detection for the sun-direction estimate."""
 
 from __future__ import annotations
 
@@ -55,17 +35,7 @@ class FaultCode(enum.Enum):
 
 @dataclass(frozen=True)
 class FrameHealth:
-    """Result of assessing one sensor frame.
-
-    Attributes:
-        ok: True when no faults were raised (the estimate can be trusted).
-        faults: The fault codes present, in detection order.
-        total_signal: Sum of (floored) corrected readings across all faces.
-        dominant_face: Face with the largest corrected reading (or None if dark).
-        saturated_faces: Names of faces flagged saturated by the simulator.
-        opposition_ratio: Multi-source indicator in [0, 1].
-        details: Extra diagnostic values (e.g. dominant_saturated).
-    """
+    """Result of assessing one sensor frame."""
 
     ok: bool
     faults: tuple[FaultCode, ...]
@@ -92,11 +62,7 @@ def corrected_frame(
     dark_offset: "float | Mapping[str, float]" = 0.0,
     gain: "float | Mapping[str, float]" = 1.0,
 ) -> dict[str, float]:
-    """Calibrate a raw frame to corrected readings ``R_i``, floored at 0.
-
-    Photodiodes cannot report negative current, so noise pushing ``R_i`` below
-    zero is clamped — this keeps the opposition/total metrics physical.
-    """
+    """Calibrate a raw frame to corrected readings ``R_i``, floored at 0."""
     corrected: dict[str, float] = {}
     for face in FACE_NAMES:
         v_i = float(face_readings[face]["reading"])
@@ -108,11 +74,7 @@ def corrected_frame(
 
 
 def opposition_ratio(corrected: Mapping[str, float]) -> float:
-    """Multi-source indicator in ``[0, 1]`` from corrected readings.
-
-    ``2 * sum_pairs(min(R+, R-)) / total``. 0 for a clean single source, 1 when
-    light is split evenly across opposite faces. Returns 0.0 for a dark frame.
-    """
+    """Multi-source indicator in ``[0, 1]`` from corrected readings."""
     total = float(sum(corrected[f] for f in FACE_NAMES))
     if total < MIN_EPSILON:
         return 0.0
@@ -135,18 +97,7 @@ def assess_frame(
     low_signal_threshold: float = LOW_SIGNAL_THRESHOLD,
     opposition_threshold: float = OPPOSITION_THRESHOLD,
 ) -> FrameHealth:
-    """Assess one raw sensor frame and return a :class:`FrameHealth`.
-
-    Args:
-        face_readings: ``simulate_faces``-style mapping (raw ``V_i`` + saturated).
-        dark_offset: Dark offset ``D_i`` for calibration (scalar or per-face).
-        gain: Gain ``G_i`` for calibration (scalar or per-face).
-        low_signal_threshold: Total corrected signal below this -> LOW_SIGNAL.
-        opposition_threshold: ``opposition_ratio`` at/above this -> MULTI_SOURCE.
-
-    Returns:
-        A frozen :class:`FrameHealth` describing the frame.
-    """
+    """Assess one raw sensor frame and return a :class:`FrameHealth`."""
     corrected = corrected_frame(face_readings, dark_offset, gain)
     total = float(sum(corrected.values()))
     saturated = saturated_face_names(face_readings)
@@ -184,13 +135,7 @@ def safe_estimate(
     gain: "float | Mapping[str, float]" = 1.0,
     **assess_kwargs: object,
 ) -> tuple[Optional[np.ndarray], FrameHealth]:
-    """Assess a frame and estimate its sun vector, never raising on bad input.
-
-    Returns ``(sun_vector, health)``. The vector is ``None`` when the frame is
-    low-signal (no resolvable direction); otherwise it is the unit estimate.
-    Faults such as saturation or multi-source do **not** suppress the estimate —
-    they are reported in ``health`` so the caller can decide whether to trust it.
-    """
+    """Assess a frame and estimate its sun vector, never raising on bad input."""
     health = assess_frame(face_readings, dark_offset, gain, **assess_kwargs)  # type: ignore[arg-type]
     if health.has(FaultCode.LOW_SIGNAL):
         return None, health

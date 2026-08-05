@@ -1,16 +1,9 @@
-"""The fully-processed ground-station record (Phase 6).
-
-`GroundStationRecord` is the single object the dashboard renders and the store
-logs. It carries everything the UI shows: raw sensors, calibrated values,
-weights, the sun vector + angles, validation metrics, fault/health, thermal, OPT
-trust, and a stream-stats snapshot. `to_dict()` yields a JSON-safe mapping
-(NaN -> null, numpy -> python) for logging.
-"""
+"""The fully-processed ground-station record (Phase 6)."""
 
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 import numpy as np
@@ -35,7 +28,7 @@ def _clean(value):
 
 @dataclass
 class GroundStationRecord:
-    """One processed frame — the complete state for one sample."""
+    """One processed frame - the complete state for one sample."""
 
     seq: int
     timestamp_ms: int
@@ -58,6 +51,13 @@ class GroundStationRecord:
     azimuth_deg: Optional[float]
     elevation_deg: Optional[float]
     confidence: float           # dimensionless 0-1
+
+    # Solar radiation pressure (formulas 6-10)
+    srp_forces: dict            # face -> force (N)
+    srp_net: list               # [Fx, Fy, Fz] (N)
+    srp_magnitude_n: float      # |F_net| (N)
+    srp_azimuth_deg: Optional[float]
+    srp_elevation_deg: Optional[float]
 
     # Validation
     angular_error_deg: Optional[float]

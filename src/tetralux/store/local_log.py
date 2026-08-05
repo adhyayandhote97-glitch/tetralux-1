@@ -1,10 +1,4 @@
-"""Local full-fidelity log (Phase 8).
-
-Every processed record is appended as one JSON line to
-``<base_dir>/<session_id>/records.jsonl``. This is the always-on source of
-truth (independent of Firebase) and backs the History page's browse / time-range
-/ CSV-export features.
-"""
+"""Local full-fidelity log (Phase 8)."""
 
 from __future__ import annotations
 

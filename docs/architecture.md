@@ -341,12 +341,11 @@ regardless. No auto-pruning/throttling — visibility only, delete sessions manu
 
 ### 8.5 Dashboard v2 (Phase 9)
 
-`dashboard/app.py` is a multi-page app (Live · 3D Vector · Light in 3D ·
-Time-series · History/Logs · About) with a Virtual/Real toggle. Virtual recomputes
+`dashboard/app.py` is a multi-page app (Live, 3D Vector, Time-series,
+History/Logs, About) with a Virtual/Real toggle. Virtual recomputes
 instantly from the az/el sliders; Real streams from `AppState` (ingest queue →
 processing thread → rolling buffer), with a built-in simulated-device feed for
-demos. All values render through `units.py` (no bare numbers). The Phase 5
-single-page replay app is preserved as `replay_app.py`.
+demos. All values render through `units.py` (no bare numbers).
 
 The real path also runs headless: `python -m tetralux.groundstation --port 8000
 [--record] [--serial PORT]`.

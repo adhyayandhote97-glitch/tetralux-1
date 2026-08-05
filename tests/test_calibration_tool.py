@@ -36,7 +36,7 @@ def _frame(pd_values: dict) -> SensorFrame:
 def test_step_prompt_handles_every_step_kind():
     """Regression: dict.get()'s default arg is evaluated eagerly, so a naive
     `prompts.get(step, f"...{step.split(':')[1]}...")` raises IndexError for
-    'dark'/'max' (no colon) even though those keys exist in the dict — the
+    'dark'/'max' (no colon) even though those keys exist in the dict - the
     fallback expression is built regardless of which branch actually fires."""
     assert "Cover all sensors" in step_prompt("dark")
     assert "brightest" in step_prompt("max")
@@ -129,7 +129,7 @@ def test_guided_calibration_against_simulated_device_feed():
     }
 
     # Intensity chosen so V = S/G + D stays comfortably under the 10-bit ADC
-    # ceiling (1023) for every face's (gain, dark) pair — at 1000 the lowest-gain
+    # ceiling (1023) for every face's (gain, dark) pair - at 1000 the lowest-gain
     # face (-z, 0.97) would clip (1000/0.97+6 > 1023), distorting the recovered
     # gain. 700 keeps every face's raw reading under ~730.
     lit_intensity = 700.0

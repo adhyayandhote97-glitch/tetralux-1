@@ -1,10 +1,4 @@
-"""History queries over stored sessions (Phase 8).
-
-Backs the dashboard History page: list sessions with size/duration/packet-count
-visibility, browse by session, filter by time range, and export CSV. Reads the
-local JSONL mirror (authoritative); RTDB can be queried directly via
-``rtdb_store.RTDBStore`` when configured.
-"""
+"""History queries over stored sessions (Phase 8)."""
 
 from __future__ import annotations
 

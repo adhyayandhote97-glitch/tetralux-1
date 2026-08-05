@@ -1,12 +1,7 @@
-"""Record fan-out (Phase 8).
-
-Writes each record to the local JSONL log and (if configured) the online store.
-Returns the bytes written to each so the session can track accumulated size.
-"""
+"""Record fan-out (Phase 8)."""
 
 from __future__ import annotations
 
-from typing import Optional
 
 from tetralux.store.local_log import LocalLog
 

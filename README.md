@@ -1,8 +1,9 @@
 # Tetralux-1
 
-A **software-only digital twin** of a 1U CubeSat sun-direction estimation
-system. Hardware comes later — for now this repo is pure physics and math that
-acts as ground truth for every downstream phase.
+A ground station for a 1U CubeSat sun-direction estimation system. It runs in
+two modes: **Virtual**, where azimuth/elevation sliders drive a simulated sensor
+suite, and **Real**, where it ingests live telemetry from the Arduino firmware in
+[`firmware/`](firmware/) over WiFi or USB serial.
 
 ## What it does
 
@@ -17,9 +18,10 @@ d   = Σ w_i · n̂_i          # weighted sum of face normals
 ŝ   = d / |d|              # final unit sun vector
 ```
 
-The full, locked math specification (16 formulas covering estimation, solar
-radiation pressure, validation, thermal, and color) lives in
-[`docs/architecture.md`](docs/architecture.md).
+The full math specification (18 formulas covering estimation, solar radiation
+pressure, validation, thermal, and colour) lives in
+[`docs/architecture.md`](docs/architecture.md), and is also rendered on the
+dashboard's **About** page.
 
 ## Phase roadmap
 
@@ -29,8 +31,8 @@ radiation pressure, validation, thermal, and color) lives in
 | **1** | Sun-vector **simulator** (`tetralux/sim/`) — pure forward model / ground truth | ✅ done |
 | **2** | Estimation engine (`tetralux/estimation/`) + validation/physics/spectral (formulas 1–16) | ✅ done |
 | **3** | Fault detection (`tetralux/faults/`) — low-signal, saturation, multi-source; packet-integrity primitives | ✅ done |
-| **4** | Fake telemetry (`tetralux/telemetry/`) — 17-byte binary packets, 8-bit checksum, resync parser, ~10–20 Hz | ✅ done |
-| **5** | Dashboard (`tetralux/dashboard/`) — Plotly Dash: 3D vector, face bars, error timeline, fault health, replay | ✅ done |
+| **4** | Telemetry codec (`tetralux/telemetry/`) — newline JSON, 8-bit XOR checksum | ✅ done |
+| **5** | Dashboard (`tetralux/dashboard/`) — Plotly Dash: 3D vector, face bars, SRP, fault health | ✅ done |
 | **6–9** | **Ground station** — real JSON ingestion, full sensor pipeline, Firebase RTDB logging, multi-page dashboard (Virtual/Real) | ✅ done |
 | **10** | **Hardware bring-up** — firmware (`firmware/`), guided calibration tool, [`docs/bringup.md`](docs/bringup.md) runbook | ✅ done |
 
@@ -48,15 +50,15 @@ src/tetralux/
   sim/                # Phase 1/7: photodiode simulator + full virtual sensor synthesis
   estimation/         # Phase 2: estimator (formulas 1-5) + az/el + LowSignalError
   validation/         # Phase 2/6: metrics (11-14) + RollingValidator + burst_metrics
-  physics/  spectral/ # Phase 2: SRP (6-10); CIE + McCamy CCT + OPT trust gate (15-16)
-  faults/             # Phase 3: fault detection + packet-integrity primitives
-  telemetry/          # Phase 4/6: binary packet codec + real JSON codec (XOR checksum)
+  physics/  spectral/ # SRP (formulas 6-10); CIE + McCamy CCT + trust gate (15-18)
+  faults/             # low signal, saturation, multi-source ambiguity
+  telemetry/          # JSON wire codec with byte-exact XOR checksum
   thermal/            # Phase 6: DS18B20 drift / rolling stats
   ingest/             # Phase 6: HTTP + serial ingest, StreamMonitor
   store/              # Phase 8: local JSONL + Firebase RTDB + session control + query
-  dashboard/          # Phase 9: multi-page Dash app (Virtual/Real), units registry
+  dashboard/          # multi-page Dash app (Virtual/Real), units registry
 firmware/             # Phase 10: Arduino Nano 33 IoT firmware (PlatformIO project)
-tests/                # pytest suite (123 tests)
+tests/                # pytest suite (101 tests)
 docs/architecture.md  # hardware map + locked math spec + ground-station design
 docs/bringup.md       # Phase 10: hardware bring-up runbook
 ```
@@ -70,8 +72,8 @@ pip install -e ".[dashboard]"
 python -m tetralux.dashboard      # serves http://127.0.0.1:8050
 ```
 
-Pages: **Live** (Virtual/Real toggle), **3D Vector**, **Light in 3D**,
-**Time-series**, **History / Logs**, **About**.
+Pages: **Live** (Virtual/Real toggle), **3D Vector**, **Time-series**,
+**History / Logs**, **About**.
 
 - **Virtual mode** — the azimuth/elevation sliders drive an *instantaneous*
   recompute of every value (sun vector, weights, angular error, bias,

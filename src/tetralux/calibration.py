@@ -1,10 +1,4 @@
-"""Photodiode calibration (Phase 6).
-
-Turns raw ADC counts into corrected readings, cosine proxies, and physical
-irradiance, per docs/architecture.md formulas 1 and 5. Reuses the locked
-``corrected_reading`` from the estimator; adds the per-face floor-at-zero and the
-irradiance mapping. Defaults mirror the v0 lab calibration.
-"""
+"""Photodiode calibration (Phase 6)."""
 
 from __future__ import annotations
 
@@ -53,12 +47,7 @@ class Calibration:
 
     @classmethod
     def load(cls, path: Union[str, Path]) -> "Calibration":
-        """Load a calibration previously written by :meth:`save`.
-
-        Raises:
-            FileNotFoundError: if ``path`` does not exist.
-            ValueError: if the file is missing required fields.
-        """
+        """Load a calibration previously written by :meth:`save`."""
         text = Path(path).read_text(encoding="utf-8")
         try:
             return cls.from_json(text)
@@ -67,12 +56,7 @@ class Calibration:
 
 
 def corrected_readings(photodiodes: dict, cal: Calibration) -> dict:
-    """Formula 1 per face, floored at 0: ``R_i = max(0, (V_i - D_i) * G_i)``.
-
-    Args:
-        photodiodes: Face -> raw ADC count.
-        cal: Calibration parameters.
-    """
+    """Formula 1 per face, floored at 0: ``R_i = max(0, (V_i - D_i) * G_i)``."""
     return {
         f: max(0.0, corrected_reading(float(photodiodes[f]), cal.dark[f], cal.gain[f]))
         for f in FACE_NAMES

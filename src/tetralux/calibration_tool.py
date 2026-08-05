@@ -1,21 +1,4 @@
-"""Guided calibration procedure (Phase 10).
-
-Measures *this* prototype's actual dark offset, per-face gain, and max
-illumination — replacing the hardcoded v0 lab placeholders in
-``calibration.py`` with values captured from the real sensors.
-
-The capture math (:func:`capture_dark_offsets`, :func:`capture_gain`,
-:func:`capture_max_illumination`, :func:`run_guided_calibration`) is pure:
-it consumes lists/streams of :class:`SensorFrame` and has no knowledge of where
-they came from, so it can be exercised against the simulated device feed with
-no hardware, or driven live by :func:`main` against a running ingest queue.
-
-Procedure (see docs/bringup.md step 6):
-1. **Dark** — cover all sensors / lights off -> average raw reading per face = D_i.
-2. **Gain** — aim a known reference light dead-on at each face in turn -> solve
-   G_i so the corrected reading hits ``target_reading``.
-3. **Max illumination** — brightest expected exposure per face -> V_max_i.
-"""
+"""Guided calibration procedure (Phase 10)."""
 
 from __future__ import annotations
 
@@ -24,7 +7,6 @@ import queue
 import time
 from typing import Callable, Sequence
 
-import numpy as np
 
 from tetralux.calibration import Calibration
 from tetralux.constants import FACE_NAMES
@@ -35,13 +17,9 @@ DEFAULT_N_SAMPLES = 30
 
 
 def average_photodiodes(frames: Sequence[SensorFrame]) -> dict:
-    """Per-face mean raw photodiode reading across ``frames``.
-
-    Raises:
-        ValueError: if ``frames`` is empty.
-    """
+    """Per-face mean raw photodiode reading across ``frames``."""
     if not frames:
-        raise ValueError("no frames captured — check the telemetry stream")
+        raise ValueError("no frames captured - check the telemetry stream")
     sums = {f: 0.0 for f in FACE_NAMES}
     for fr in frames:
         pd = fr.photodiode_map()
@@ -57,19 +35,12 @@ def capture_dark_offsets(dark_frames: Sequence[SensorFrame]) -> dict:
 
 def capture_gain(face: str, lit_frames: Sequence[SensorFrame], dark: dict,
                  target_reading: float = DEFAULT_TARGET_READING) -> float:
-    """Solve gain G_i for one face so it reads ``target_reading`` when lit.
-
-    ``R_i = (V_i - D_i) * G_i = target`` => ``G_i = target / (V_i - D_i)``.
-
-    Raises:
-        ValueError: if the dark-subtracted signal isn't positive (face wasn't
-            actually illuminated, or dark offset was captured incorrectly).
-    """
+    """Solve gain G_i for one face so it reads ``target_reading`` when lit."""
     avg = average_photodiodes(lit_frames)[face]
     signal = avg - dark[face]
     if signal <= 0:
         raise ValueError(
-            f"face {face}: dark-subtracted signal is {signal:.2f} (<= 0) — "
+            f"face {face}: dark-subtracted signal is {signal:.2f} (<= 0) - "
             "is the reference light actually aimed at this face?"
         )
     return target_reading / signal
@@ -78,7 +49,7 @@ def capture_gain(face: str, lit_frames: Sequence[SensorFrame], dark: dict,
 def capture_max_illumination(bright_frames: Sequence[SensorFrame]) -> dict:
     """Max raw reading observed per face (brightest expected exposure)."""
     if not bright_frames:
-        raise ValueError("no frames captured — check the telemetry stream")
+        raise ValueError("no frames captured - check the telemetry stream")
     out = {f: 0.0 for f in FACE_NAMES}
     for fr in bright_frames:
         pd = fr.photodiode_map()
@@ -92,19 +63,7 @@ def run_guided_calibration(
     target_reading: float = DEFAULT_TARGET_READING,
     lab_scaling_factor: float = 0.1,
 ) -> Calibration:
-    """Drive the full dark -> gain -> max procedure and return a Calibration.
-
-    Args:
-        collect: Called with a step label (``"dark"``, ``"gain:<face>"``,
-            ``"max"``) and must return the frames captured for that step
-            (e.g. after prompting the operator and sampling the live stream).
-        target_reading: Reference corrected-reading target for gain solving.
-        lab_scaling_factor: Carried through to the resulting Calibration as-is
-            (this procedure does not measure it).
-
-    Returns:
-        A fully populated :class:`Calibration`.
-    """
+    """Drive the full dark -> gain -> max procedure and return a Calibration."""
     dark = capture_dark_offsets(collect("dark"))
 
     gain = {}
@@ -122,11 +81,7 @@ def run_guided_calibration(
 # Live CLI: drains a running ingest queue, prompting the operator at each step.
 # ---------------------------------------------------------------------------
 def step_prompt(step: str) -> str:
-    """The operator-facing instruction for a given collection step.
-
-    Args:
-        step: ``"dark"``, ``"max"``, or ``"gain:<face>"``.
-    """
+    """The operator-facing instruction for a given collection step."""
     if step == "dark":
         return "Cover all sensors / turn off all light, then press Enter…"
     if step == "max":
@@ -136,14 +91,7 @@ def step_prompt(step: str) -> str:
 
 
 def _flush_queue(frame_queue: "queue.Queue") -> int:
-    """Discard everything currently queued (non-blocking). Returns count dropped.
-
-    A live device streams continuously between prompts; without this, frames
-    posted *before* the operator finished repositioning the light (still
-    reflecting the previous step's conditions) would sit at the front of the
-    FIFO and get consumed as if they belonged to the new step. Call this right
-    after the operator confirms readiness, before sampling.
-    """
+    """Discard everything currently queued (non-blocking)."""
     dropped = 0
     while True:
         try:
@@ -172,13 +120,7 @@ def _drain_live(frame_queue: "queue.Queue", n: int, timeout_s: float = 15.0):
 
 
 def main() -> None:
-    """Interactive CLI: connect to a running ground station and calibrate it.
-
-    Requires a ground-station ingest server or serial reader already running
-    and feeding the same process's queue is impractical across processes, so
-    this CLI runs its own lightweight ingest (HTTP by default, or serial) just
-    for the calibration session.
-    """
+    """Interactive CLI: connect to a running ground station and calibrate it."""
     ap = argparse.ArgumentParser(description="Tetralux-1 guided calibration")
     ap.add_argument("--port", type=int, default=8000, help="HTTP ingest port")
     ap.add_argument("--serial", default=None, help="serial port instead of HTTP")
@@ -213,7 +155,7 @@ def main() -> None:
 
     def collect(step: str):
         input(f"\n[{step}] {step_prompt(step)} ")
-        # Discard any backlog from before the operator was ready — otherwise
+        # Discard any backlog from before the operator was ready - otherwise
         # frames still queued from the *previous* step's conditions would be
         # sampled as if they belonged to this one (see _flush_queue docstring).
         stale = _flush_queue(frame_queue)
