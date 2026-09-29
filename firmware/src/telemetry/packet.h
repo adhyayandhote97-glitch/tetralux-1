@@ -11,7 +11,7 @@
 struct SensorSample {
   uint32_t seq;
   uint32_t ts_ms;
-  uint16_t pd[6];          // +x,-x,+y,-y,+z,-z raw ADC (0-1023)
+  uint16_t pd[6];          // +x,-x,+y,-y,+z,-z raw ADC (0-4095, 12-bit)
   float lux[6];            // same face order
   int16_t mag_x, mag_y, mag_z;
   float opt_X[4], opt_Y[4], opt_Z[4], opt_lux[4];

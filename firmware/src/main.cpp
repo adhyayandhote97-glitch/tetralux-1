@@ -1,7 +1,7 @@
 // Tetralux-1 firmware (Phase 10) — Arduino Nano 33 IoT.
 //
 // Samples all sensors, builds one JSON packet per docs/architecture.md §8.1,
-// and sends it over WiFi (primary) or Serial (fallback) at SAMPLE_INTERVAL_MS.
+// and sends it over WiFi AND Serial every sample, at SAMPLE_INTERVAL_MS.
 // See docs/bringup.md for the flash/bring-up procedure.
 #include <Arduino.h>
 #include <Wire.h>
@@ -13,22 +13,30 @@
 #include "sensors/opt4048.h"
 #include "telemetry/packet.h"
 #include "telemetry/wifi_sender.h"
+#include "diagnostic.h"
 
 static uint32_t seq = 0;
 static char packet_buf[600];
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
+  // Give the USB port a moment to enumerate, but boot anyway if nothing opens
+  // it — the board must run on battery with no laptop attached.
+  while (!Serial && millis() < 4000);
   Wire.begin();
 
+  photodiode_init();
   bh1750_init_all();
   ds18b20_init_all();
   qmc5883l_init();
   opt4048_init_all();
 
-  // WiFi is attempted but not required to boot — a WiFi-less board still
-  // functions over Serial (see the wifi_send_packet() fallback in loop()).
-  wifi_connect();
+  // WiFi is attempted but not required to boot: wifi_begin() returns at once
+  // and wifi_service() keeps retrying in the background, so a missing network
+  // never stalls the sensor loop. Serial still carries every frame.
+#if !DIAGNOSTIC_MODE
+  wifi_begin();
+#endif
 }
 
 void loop() {
@@ -42,7 +50,12 @@ void loop() {
   opt4048_read_all(s.opt_X, s.opt_Y, s.opt_Z, s.opt_lux);
   ds18b20_read_all(s.temp);
 
-  bool wifi_ok = wifi_is_connected();
+#if DIAGNOSTIC_MODE
+  bool wifi_ok = false;  // bench mode: WiFi never started, nothing is POSTed
+  diagnostic_print(s);
+#else
+  bool wifi_ok = wifi_service();
+#endif
   s.flags = wifi_ok ? 0x01 : 0x00;
 
   size_t len = build_packet(s, packet_buf, sizeof(packet_buf));
@@ -53,15 +66,12 @@ void loop() {
     return;
   }
 
-  bool sent = false;
   if (wifi_ok) {
-    sent = wifi_send_packet(packet_buf, len);
+    wifi_send_packet(packet_buf, len);
   }
-  if (!sent) {
-    // Serial fallback: identical JSON line, so tetralux.ingest.serial_reader
-    // (which forwards any line starting with '{') decodes it the same way.
-    Serial.println(packet_buf);
-  }
+  // Serial always gets the same line, so a USB-only bring-up works even while
+  // WiFi is down, and both paths can be compared side by side.
+  Serial.println(packet_buf);
 
   delay(SAMPLE_INTERVAL_MS);
 }

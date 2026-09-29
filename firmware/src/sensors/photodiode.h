@@ -4,8 +4,11 @@
 
 #include <Arduino.h>
 
+// Switches the ADC to 12-bit. Call once from setup(), before any read.
+void photodiode_init();
+
 // Reads all 6 photodiode pins into `out[6]`, in canonical face order.
-// 10-bit ADC (0-1023) per docs/architecture.md's hardware map.
+// 12-bit ADC (0-4095) on the Nano 33 IoT, averaged over 16 samples per face.
 void photodiode_read_all(uint16_t out[6]);
 
 #endif // TETRALUX_PHOTODIODE_H

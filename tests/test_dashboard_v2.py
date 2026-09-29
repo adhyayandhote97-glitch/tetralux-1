@@ -67,6 +67,32 @@ def test_state_real_sim_feed_streams(tmp_path):
     assert st.connection()["total_accepted"] > 0
 
 
+def test_state_accepts_http_ingest(tmp_path):
+    # The path real hardware takes with `--ingest-port`: HTTP POST -> feed_raw.
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tetralux.dashboard.state import AppState
+    from tetralux.ingest.http_server import create_ingest_app
+    from tetralux.sim.sensors import frame_from_angles
+    from tetralux.telemetry.json_frame import encode_json_frame
+
+    st = AppState(base_dir=str(tmp_path))
+    st.start_real()
+    client = TestClient(create_ingest_app(st.feed_raw, monitor=st.monitor))
+    try:
+        raw = encode_json_frame(frame_from_angles(0.0, 30.0))
+        assert client.post("/ingest", content=raw).status_code == 200
+        deadline = time.time() + 4.0
+        while time.time() < deadline and st.latest() is None:
+            time.sleep(0.05)
+    finally:
+        st.stop_real()
+    assert st.latest() is not None
+    assert st.connection()["total_accepted"] == 1
+
+
 def test_create_app_v2_smoke(tmp_path):
     pytest.importorskip("dash")
     from dash import Dash

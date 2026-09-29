@@ -9,18 +9,54 @@ uint8_t xor_checksum(const char *data, size_t len) {
   return acc;
 }
 
-// dtostrf is guaranteed across Arduino cores (unlike snprintf's %f support,
-// which some cores omit); used for all float fields to avoid that pitfall.
+// Writes v with exactly `decimals` places, e.g. -3.5 -> "-3.5". Done by hand:
+// this core links newlib-nano without _printf_float, so "%f" prints nothing,
+// and it does not declare dtostrf. Non-finite or too-long values give "null".
 static void fmt_float(float v, int decimals, char *buf, size_t buf_size) {
-  dtostrf(v, 0, decimals, buf);
-  (void)buf_size;  // dtostrf has no bounds check; buffers below are sized generously
+  double scale = 1.0;
+  for (int i = 0; i < decimals; i++) scale *= 10.0;
+  double scaled = fabs((double)v) * scale;  // exact for a float and <= 3 places
+  if (!isfinite(v) || scaled >= 1e18) {
+    strncpy(buf, "null", buf_size);
+    return;
+  }
+  double whole = floor(scaled);
+  double frac = scaled - whole;
+  unsigned long long n = (unsigned long long)whole;
+  // Ties to even, like printf/dtostrf: DS18B20 temps are 1/16 C steps, so
+  // exact halves such as 21.125 come up constantly at 2 places.
+  if (frac > 0.5 || (frac == 0.5 && (n & 1))) n++;
+
+  char digits[24];  // least significant first
+  int len = 0;
+  do {
+    digits[len++] = (char)('0' + n % 10);
+    n /= 10;
+  } while (n != 0 || len <= decimals);  // at least one digit before the point
+
+  bool nonzero = false;
+  for (int i = 0; i < len; i++) nonzero |= (digits[i] != '0');
+  bool neg = v < 0 && nonzero;  // no "-0.0"
+
+  size_t need = (neg ? 1 : 0) + len + (decimals > 0 ? 1 : 0) + 1;
+  if (need > buf_size) {
+    strncpy(buf, "null", buf_size);
+    return;
+  }
+  size_t pos = 0;
+  if (neg) buf[pos++] = '-';
+  for (int i = len - 1; i >= 0; i--) {
+    buf[pos++] = digits[i];
+    if (i == decimals && decimals > 0) buf[pos++] = '.';
+  }
+  buf[pos] = '\0';
 }
 
 static void fmt_temp(float v, char *buf, size_t buf_size) {
   if (isnan(v)) {
     strncpy(buf, "null", buf_size);
   } else {
-    dtostrf(v, 0, 2, buf);
+    fmt_float(v, 2, buf, buf_size);
   }
 }
 

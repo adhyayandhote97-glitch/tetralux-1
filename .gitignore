@@ -29,8 +29,6 @@ htmlcov/
 .vscode/
 *.swp
 
-# Ground-station data logs (local full-fidelity mirror)
-data/
 
 # Firebase service-account credentials — NEVER commit
 *serviceAccount*.json
@@ -46,3 +44,4 @@ firmware/.vscode/
 
 # Measured calibration files (device-specific, not generic defaults)
 calibration.json
+data/logs/S20260723_110252/records.jsonl

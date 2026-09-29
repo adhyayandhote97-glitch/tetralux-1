@@ -1,4 +1,4 @@
-// DS18B20 thermal sensors (Phase 10) — 6 units, one-wire, T1..T6.
+// DS18B20 thermal sensors (Phase 10) — 6 units on one shared one-wire bus, one per face.
 #ifndef TETRALUX_DS18B20_H
 #define TETRALUX_DS18B20_H
 
@@ -6,9 +6,12 @@
 
 void ds18b20_init_all();
 
-// Reads all 6 sensors into `out[6]` (degrees C). A failed/disconnected sensor
-// is written as NAN, which packet.cpp serializes as JSON `null` — matching
-// tetralux.frames.SensorFrame's nullable-temperature contract.
+// Writes the latest completed temperature per sensor into `out[6]` (degrees C),
+// in face order +x,-x,+y,-y,+z,-z (DS18B20_ADDR_* in config.h). Never blocks: values refresh once per conversion
+// (~750 ms), so consecutive frames can repeat them. A sensor that doesn't answer,
+// or any sensor before the first conversion completes, is NAN, which packet.cpp
+// serializes as JSON `null` — matching tetralux.frames.SensorFrame's
+// nullable-temperature contract.
 void ds18b20_read_all(float out[6]);
 
 #endif // TETRALUX_DS18B20_H

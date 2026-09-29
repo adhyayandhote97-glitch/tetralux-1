@@ -58,7 +58,7 @@ src/tetralux/
   store/              # Phase 8: local JSONL + Firebase RTDB + session control + query
   dashboard/          # multi-page Dash app (Virtual/Real), units registry
 firmware/             # Phase 10: Arduino Nano 33 IoT firmware (PlatformIO project)
-tests/                # pytest suite (101 tests)
+tests/                # pytest suite (102 tests)
 docs/architecture.md  # hardware map + locked math spec + ground-station design
 docs/bringup.md       # Phase 10: hardware bring-up runbook
 ```
@@ -98,7 +98,16 @@ python -m tetralux.groundstation --serial /dev/tty.usb… --record  # USB serial
 
 The firmware POSTs newline-delimited JSON (`seq,ts,pd,lux,mag,opt,temp,flags,chk`,
 8-bit XOR checksum) to `/ingest`. `--record` starts a logging session (off by
-default). Point `python -m tetralux.dashboard` at the same machine to view it.
+default). The ground station is headless: to *watch* live hardware data, let the
+dashboard receive it directly instead (stop the ground station first, since both
+want port 8000):
+
+```bash
+python -m tetralux.dashboard --ingest-port 8000 --record     # WiFi
+python -m tetralux.dashboard --serial /dev/tty.usb… --record  # USB serial
+```
+
+On startup it prints the `SERVER_IP` to put in `firmware/include/secrets.h`.
 
 ## Hardware bring-up (firmware + calibration)
 

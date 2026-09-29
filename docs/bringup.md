@@ -74,8 +74,12 @@ Once step 3 is clean:
 
 ## 5. Dashboard live check
 
+Stop the ground station from step 4 first (it holds port 8000, and frames it
+receives never reach the dashboard). The dashboard then listens itself:
+
 ```bash
-python -m tetralux.dashboard
+python -m tetralux.dashboard --ingest-port 8000          # WiFi
+python -m tetralux.dashboard --serial /dev/tty.usb…      # or USB serial
 ```
 
 - Switch to **Real-time** mode (do *not* enable "Simulated device feed" — that
