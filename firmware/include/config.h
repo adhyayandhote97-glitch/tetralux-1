@@ -28,6 +28,9 @@
 #define HTTP_CONNECT_TIMEOUT_MS 300
 // After a failed send, stop trying for this long instead of retrying each frame.
 #define WIFI_SEND_BACKOFF_MS 2000
+// Cap on each WiFi.begin() call. WiFiNINA 1.9.1 otherwise waits up to 50 s for
+// a network that isn't there, freezing the sensor loop the whole time.
+#define WIFI_BEGIN_TIMEOUT_MS 100
 
 // ---- Sample rate ----
 // One sample per send, on purpose. seq advances once per loop, so sampling
@@ -44,6 +47,11 @@
 // never start WiFi or POST frames (USB bench testing only). 0 = normal flight
 // telemetry; the diagnostic code compiles out entirely.
 #define DIAGNOSTIC_MODE 0   // set to 1 to print per-face debug lines over Serial
+
+// ---- WiFi on/off ----
+// 0 = USB Serial only: WiFi is never started (for places the board can't join a
+// network, e.g. school). 1 = also POST every frame to SERVER_IP over WiFi.
+#define WIFI_ENABLED 0
 
 // ---- Photodiode analog pins, in canonical face order +x,-x,+y,-y,+z,-z ----
 // (matches tetralux.constants.FACE_NAMES — do not reorder without updating both)

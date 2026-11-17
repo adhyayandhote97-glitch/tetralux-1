@@ -1,7 +1,8 @@
 // Tetralux-1 firmware (Phase 10) — Arduino Nano 33 IoT.
 //
 // Samples all sensors, builds one JSON packet per docs/architecture.md §8.1,
-// and sends it over WiFi AND Serial every sample, at SAMPLE_INTERVAL_MS.
+// and sends it over Serial every sample (and WiFi when WIFI_ENABLED), at
+// SAMPLE_INTERVAL_MS.
 // See docs/bringup.md for the flash/bring-up procedure.
 #include <Arduino.h>
 #include <Wire.h>
@@ -31,10 +32,9 @@ void setup() {
   qmc5883l_init();
   opt4048_init_all();
 
-  // WiFi is attempted but not required to boot: wifi_begin() returns at once
-  // and wifi_service() keeps retrying in the background, so a missing network
-  // never stalls the sensor loop. Serial still carries every frame.
-#if !DIAGNOSTIC_MODE
+  // WiFi is optional: wifi_begin() waits at most WIFI_BEGIN_TIMEOUT_MS and
+  // wifi_service() retries every WIFI_RETRY_MS. Serial carries every frame.
+#if WIFI_ENABLED && !DIAGNOSTIC_MODE
   wifi_begin();
 #endif
 }
@@ -53,8 +53,10 @@ void loop() {
 #if DIAGNOSTIC_MODE
   bool wifi_ok = false;  // bench mode: WiFi never started, nothing is POSTed
   diagnostic_print(s);
-#else
+#elif WIFI_ENABLED
   bool wifi_ok = wifi_service();
+#else
+  bool wifi_ok = false;  // USB-only build: WiFi is never started
 #endif
   s.flags = wifi_ok ? 0x01 : 0x00;
 

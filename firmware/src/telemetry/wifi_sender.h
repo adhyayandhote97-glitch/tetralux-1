@@ -4,7 +4,7 @@
 
 #include <Arduino.h>
 
-// Starts the first connection attempt. Returns immediately; never waits.
+// Starts the first connection attempt. Returns within about WIFI_BEGIN_TIMEOUT_MS.
 void wifi_begin();
 
 // Call once per loop: retries a dropped connection every WIFI_RETRY_MS without

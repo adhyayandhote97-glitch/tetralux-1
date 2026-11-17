@@ -9,11 +9,12 @@ static uint32_t last_send_ms = 0;
 // millis() value before which sends are skipped after a failure (0 = send now).
 static uint32_t retry_after_ms = 0;
 
-// Starts a connection attempt and returns straight away. WiFi.begin() kicks the
-// NINA module off asynchronously; we never sit in a delay() waiting for it,
-// because the sensor loop has to keep running with or without a network.
+// Hands a connection attempt to the NINA module and returns within about
+// WIFI_BEGIN_TIMEOUT_MS; wifi_is_connected() picks up the result later. Without
+// the cap, WiFiNINA 1.9.1's begin() blocks up to 50 s when the network is absent.
 void wifi_begin() {
   last_attempt_ms = millis();
+  WiFi.setTimeout(WIFI_BEGIN_TIMEOUT_MS);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 

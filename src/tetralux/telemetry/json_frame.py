@@ -48,86 +48,37 @@ from typing import Union
 
 from tetralux.constants import ADC_MAX, FACE_NAMES
 from tetralux.frames import RejectedFrame, SensorFrame
-
-# The exact text that marks where the checksum field begins. Everything BEFORE
-# this point is what gets hashed, on both sides. Written with the quotes
-# included so it cannot accidentally match a value somewhere else in the packet.
 _CHK_MARKER = ',"chk"'
-# Derived from FACE_NAMES rather than typed as 6, so if the geometry ever
-# changed the validation would follow automatically.
+
 _N_FACES = len(FACE_NAMES)
 _N_OPT = 4
 
 
-# --- The integrity check ---
-#
-# PARAMETER
-#   data - the text or bytes to hash. Accepts both because it is called with
-#          text when encoding and with raw bytes off the wire when decoding.
-# RETURNS
-#   a single number from 0 to 255.
-#
-# HOW XOR WORKS. Exclusive-or compares two numbers bit by bit and gives 1 where
-# they differ, 0 where they match. Applied across every byte in turn, it
-# produces one number that depends on all of them: flip any single bit anywhere
-# in the packet and the result changes, which is exactly the property needed.
-#
-# It is chosen because the firmware side must run on an 8-bit microcontroller,
-# where a real cryptographic hash would be far too slow. XOR is a handful of CPU
-# instructions and catches the single-bit errors that radio links actually
-# produce. It is not secure against deliberate tampering, and does not need to
-# be.
 def xor_checksum(data: Union[str, bytes]) -> int:
     """8-bit XOR checksum over ASCII bytes (matches the firmware)."""
-    # .encode turns text into bytes. "replace" substitutes a placeholder for any
-    # character that is not ASCII rather than raising, so a corrupted packet
-    # full of noise still produces a checksum, which then simply fails to match.
+
     if isinstance(data, str):
         data = data.encode("ascii", "replace")
     acc = 0
-    # Iterating over bytes gives each one as a number 0 to 255.
+
     for byte in data:
-        # `^=` is "XOR with, and store back", the same shorthand as `+=`.
         acc ^= byte
-    # `& 0xFF` keeps only the lowest 8 bits. Redundant here since XOR of bytes
-    # cannot exceed 255, but it states the contract: this is an 8-BIT checksum,
-    # matching the uint8_t the firmware uses.
+
     return acc & 0xFF
 
 
-# --- Building the wire string ---
-#
-# PARAMETER
-#   frame - the SensorFrame to serialize.
-# RETURNS
-#   one line of text, exactly as the firmware would transmit it.
-#
-# WHY THIS IS BUILT BY HAND WITH f-STRINGS INSTEAD OF json.dumps. The checksum
-# must match what the Arduino computes, so the text must match the Arduino's
-# output character for character: same key order, same number of decimal places,
-# same absence of spaces. json.dumps makes its own formatting choices, and any
-# one of them differing would break every checksum. Building the string
-# explicitly is the only way to control it exactly.
-#
-# Each `:.1f` or `:.3f` is a decimal-place count that MIRRORS THE FIRMWARE. Do
-# not adjust them without changing the firmware to match.
 def encode_json_frame(frame: SensorFrame) -> str:
     """Serialize a :class:`SensorFrame` to the firmware's exact wire string."""
-    # ",".join(...) glues a sequence of strings together with commas between.
     pd = ",".join(str(int(v)) for v in frame.photodiodes)
     lux = ",".join(f"{float(v):.1f}" for v in frame.lux)
     m = frame.magnetometer
-    # Inside an f-string, `{{` and `}}` produce one literal brace, since a
-    # single brace would start a substitution.
+
     mag = f'{{"x":{int(m["x"])},"y":{int(m["y"])},"z":{int(m["z"])}}}'
     opt = ",".join(
         f'{{"X":{float(o["X"]):.3f},"Y":{float(o["Y"]):.3f},'
         f'"Z":{float(o["Z"]):.3f},"lux":{float(o["lux"]):.1f}}}'
         for o in frame.opt
     )
-    # A missing temperature sensor becomes the literal text `null`, which is how
-    # JSON spells None. Distinct from 0.00, which would claim a reading of zero
-    # degrees.
     temp = ",".join("null" if t is None else f"{float(t):.2f}" for t in frame.temperatures)
 
     # Body up to (not including) the checksum field - this is what gets XOR'd.
