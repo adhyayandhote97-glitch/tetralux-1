@@ -23,6 +23,13 @@ pressure, validation, thermal, and colour) lives in
 [`docs/architecture.md`](docs/architecture.md), and is also rendered on the
 dashboard's **About** page.
 
+
+## Hardware & data
+
+- **Hardware:** BOM, Blender CAD model and diagrams in [`hardware/`](hardware/)
+- **Dataset:** real telemetry, including a 2-hour endurance run with 100 % packet reliability; see [`DATA.md`](DATA.md)
+- **Design paper:** [`docs/papers/`](docs/papers/)
+
 ## Phase roadmap
 
 | Phase | Focus | Status |
