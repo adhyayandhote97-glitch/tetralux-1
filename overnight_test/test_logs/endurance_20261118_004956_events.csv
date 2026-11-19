@@ -1,0 +1,3 @@
+host_iso,host_mono,event,port,detail
+2026-11-18T00:49:56.872+05:30,2.996962,start,,hours=2.0 port=auto baud=115200 window=5.0 calibration from /Users/adhyayan/Downloads/attempt to code/calibration.json
+2026-11-18T00:50:54.043+05:30,60.168713,stop,,stopped by Ctrl+C

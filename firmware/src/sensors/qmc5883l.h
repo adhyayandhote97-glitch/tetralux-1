@@ -1,4 +1,4 @@
-// QMC5883L magnetometer (Phase 10) — behind the TCA9548A mux.
+// QMC5883L magnetometer
 #ifndef TETRALUX_QMC5883L_H
 #define TETRALUX_QMC5883L_H
 
@@ -6,7 +6,7 @@
 
 void qmc5883l_init();
 
-// Reads raw x,y,z into `*x,*y,*z`.
+// raw xyz
 void qmc5883l_read(int16_t *x, int16_t *y, int16_t *z);
 
 #endif // TETRALUX_QMC5883L_H

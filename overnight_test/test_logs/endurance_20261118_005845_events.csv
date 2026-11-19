@@ -1,0 +1,4 @@
+host_iso,host_mono,event,port,detail
+2026-11-18T00:58:45.819+05:30,0.557518,start,,hours=2.0 port=auto baud=115200 window=5.0 calibration from /Users/adhyayan/Downloads/attempt to code/calibration.json
+2026-11-18T00:58:45.820+05:30,0.559110,port_open,/dev/cu.usbmodem1201,/dev/cu.usbmodem1201 @ 115200
+2026-11-18T02:58:45.889+05:30,7200.607143,stop,/dev/cu.usbmodem1201,finished (2.0 h elapsed)

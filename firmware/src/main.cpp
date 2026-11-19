@@ -1,9 +1,4 @@
-// Tetralux-1 firmware (Phase 10) — Arduino Nano 33 IoT.
-//
-// Samples all sensors, builds one JSON packet per docs/architecture.md §8.1,
-// and sends it over Serial every sample (and WiFi when WIFI_ENABLED), at
-// SAMPLE_INTERVAL_MS.
-// See docs/bringup.md for the flash/bring-up procedure.
+// Tetralux-1 firmware
 #include <Arduino.h>
 #include <Wire.h>
 #include "config.h"
@@ -21,8 +16,7 @@ static char packet_buf[600];
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
-  // Give the USB port a moment to enumerate, but boot anyway if nothing opens
-  // it — the board must run on battery with no laptop attached.
+  // USB wait
   while (!Serial && millis() < 4000);
   Wire.begin();
 
@@ -32,8 +26,7 @@ void setup() {
   qmc5883l_init();
   opt4048_init_all();
 
-  // WiFi is optional: wifi_begin() waits at most WIFI_BEGIN_TIMEOUT_MS and
-  // wifi_service() retries every WIFI_RETRY_MS. Serial carries every frame.
+  // optional WiFi
 #if WIFI_ENABLED && !DIAGNOSTIC_MODE
   wifi_begin();
 #endif
@@ -51,19 +44,18 @@ void loop() {
   ds18b20_read_all(s.temp);
 
 #if DIAGNOSTIC_MODE
-  bool wifi_ok = false;  // bench mode: WiFi never started, nothing is POSTed
+  bool wifi_ok = false;  // bench mode
   diagnostic_print(s);
 #elif WIFI_ENABLED
   bool wifi_ok = wifi_service();
 #else
-  bool wifi_ok = false;  // USB-only build: WiFi is never started
+  bool wifi_ok = false;  // USB only
 #endif
   s.flags = wifi_ok ? 0x01 : 0x00;
 
   size_t len = build_packet(s, packet_buf, sizeof(packet_buf));
   if (len == 0) {
-    // Buffer overflow building the packet — should not happen with the sizes
-    // above, but skip this sample rather than send a truncated/garbage frame.
+    // skip sample
     delay(SAMPLE_INTERVAL_MS);
     return;
   }
@@ -71,8 +63,7 @@ void loop() {
   if (wifi_ok) {
     wifi_send_packet(packet_buf, len);
   }
-  // Serial always gets the same line, so a USB-only bring-up works even while
-  // WiFi is down, and both paths can be compared side by side.
+  // always Serial
   Serial.println(packet_buf);
 
   delay(SAMPLE_INTERVAL_MS);

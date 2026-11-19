@@ -1,4 +1,4 @@
-// Bench-test output for the photodiode/BH1750 pairing. Serial only.
+// bench output
 #ifndef TETRALUX_DIAGNOSTIC_H
 #define TETRALUX_DIAGNOSTIC_H
 
@@ -7,7 +7,7 @@
 #if DIAGNOSTIC_MODE
 #include "telemetry/packet.h"
 
-// Prints one line per face, +x..-z, from the values already in `s`.
+// per-face lines
 void diagnostic_print(const SensorSample& s);
 #endif
 

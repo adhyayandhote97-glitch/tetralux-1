@@ -71,7 +71,7 @@ size_t build_packet(const SensorSample &s, char *out, size_t out_size) {
     fmt_float(s.opt_lux[i], 1, opt_lux_s[i], sizeof(opt_lux_s[i]));
   }
 
-  // Field order/format must match json_frame.py's encode_json_frame exactly.
+  // match decoder
   int n = snprintf(
       out, out_size,
       "{\"seq\":%lu,\"ts\":%lu,"
@@ -98,7 +98,7 @@ size_t build_packet(const SensorSample &s, char *out, size_t out_size) {
       s.flags);
 
   if (n < 0 || (size_t)n >= out_size) {
-    return 0;  // buffer too small — caller should treat as a build failure
+    return 0;  // too small
   }
 
   uint8_t chk = xor_checksum(out, (size_t)n);

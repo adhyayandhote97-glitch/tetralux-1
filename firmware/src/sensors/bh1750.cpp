@@ -3,8 +3,7 @@
 #include "mux.h"
 #include <BH1750.h>
 
-// Index 0..5 is +x,-x,+y,-y,+z,-z. One object per face because the library
-// stores the I2C address inside the object, and two faces use 0x5C.
+// per-face objects
 static const uint8_t BH1750_MUX[6] = {
     BH1750_MUX_PLUS_X, BH1750_MUX_MINUS_X, BH1750_MUX_PLUS_Y,
     BH1750_MUX_MINUS_Y, BH1750_MUX_PLUS_Z, BH1750_MUX_MINUS_Z,
@@ -26,6 +25,6 @@ void bh1750_read_all(float out[6]) {
   for (int ch = 0; ch < 6; ch++) {
     mux_select_channel(BH1750_MUX[ch]);
     float lux = sensors[ch].readLightLevel();
-    out[ch] = (lux < 0) ? 0.0f : lux;  // library returns -1 on read failure
+    out[ch] = (lux < 0) ? 0.0f : lux;  // read failure
   }
 }
