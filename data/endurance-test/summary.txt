@@ -1,0 +1,50 @@
+Log: endurance_20261120_010001.csv
+Duration: 2026-11-20 01:00:01 -> 08:06:01 (7.10 h)
+Lines received: 138751; valid frames: 69376; other lines: 69375
+Missing frames (seq gaps): 0 in 0 gap(s); duplicates: 0; board restarts: 0
+Expected frames 69376, received 69376 -> 100.000 %
+Interval (Arduino millis): median 368 ms, min 368, max 369, >1.5x median: 0
+Silent periods > 2 s (laptop clock): 0
+
+sensor           min       max      mean
+pd_px           1.00     95.00     16.47
+pd_nx           4.00     43.00     12.91
+pd_py           2.00    489.00     25.55
+pd_ny           3.00     30.00     11.11
+pd_pz           2.00     74.00     12.83
+pd_nz           2.00    330.00     22.06
+lux_px          0.00      0.00      0.00
+lux_nx          0.00      0.00      0.00
+lux_py          0.00      0.00      0.00
+lux_ny          0.00      0.00      0.00
+lux_pz          0.00      0.00      0.00
+lux_nz          0.00      0.00      0.00
+mag_x           0.00      0.00      0.00
+mag_y           0.00      0.00      0.00
+mag_z           0.00      0.00      0.00
+opt0_X          0.00      0.00      0.00
+opt0_Y          0.00      0.00      0.00
+opt0_Z          0.00      0.00      0.00
+opt0_lux        0.00      0.00      0.00
+opt1_X          0.00      0.00      0.00
+opt1_Y          0.00      0.00      0.00
+opt1_Z          0.00      0.00      0.00
+opt1_lux        0.00      0.00      0.00
+opt2_X          0.00      0.00      0.00
+opt2_Y          0.00      0.00      0.00
+opt2_Z          0.00      0.00      0.00
+opt2_lux        0.00      0.00      0.00
+opt3_X          0.00      0.00      0.00
+opt3_Y          0.00      0.00      0.00
+opt3_Z          0.00      0.00      0.00
+opt3_lux        0.00      0.00      0.00
+temp_px        25.25     27.50     25.93
+temp_nx        25.00     26.50     25.58
+temp_py        25.25     27.25     25.75
+temp_ny        25.75     27.00     26.07
+temp_pz        24.75     27.75     25.67
+temp_nz        24.50     26.50     25.38
+
+Anomalies:
+- sensors constant for the whole run: lux_px=0, lux_nx=0, lux_py=0, lux_ny=0, lux_pz=0, lux_nz=0, mag_x=0, mag_y=0, mag_z=0, opt0_X=0, opt0_Y=0, opt0_Z=0, opt0_lux=0, opt1_X=0, opt1_Y=0, opt1_Z=0, opt1_lux=0, opt2_X=0, opt2_Y=0, opt2_Z=0, opt2_lux=0, opt3_X=0, opt3_Y=0, opt3_Z=0, opt3_lux=0
+- non-frame line x69375: [BH1750] Device is not configured!

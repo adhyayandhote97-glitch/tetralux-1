@@ -28,6 +28,7 @@ dashboard's **About** page.
 
 - **Hardware:** BOM, Blender CAD model and diagrams in [`hardware/`](hardware/)
 - **Dataset:** real telemetry, including a 2-hour endurance run with 100 % packet reliability; see [`DATA.md`](DATA.md)
+- **Overnight endurance test:** 7.1 h, 69,376/69,376 frames, no gaps or restarts; see [`data/endurance-test/`](data/endurance-test/)
 - **Design paper:** [`docs/papers/`](docs/papers/)
 
 ## Phase roadmap
